@@ -1,23 +1,43 @@
-# Общие артефакты сборки/окружения — дополни под свой стек.
+# Артефакты сборки/кэш — дополни под выбранный стек. Один сервис = один стек.
+
+# --- Rust ---
 /target/
-/build/
-/dist/
-/out/
-*.log
+**/*.rs.bk
+Cargo.lock  # раскомментируй СТРОКОЙ ВЫШЕ для бинарника; для библиотеки коммитят
 
-# Зависимости
-/node_modules/
-/.venv/
-/__pycache__/
+# --- Go ---
+/bin/
+*.exe
+*.test
+*.out
+
+# --- Python ---
+__pycache__/
 *.pyc
+.venv/
+.venv*/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 
-# IDE / ОС
+# --- Node/TypeScript ---
+node_modules/
+dist/
+*.tsbuildinfo
+.turbo/
+.vite/
+
+# --- IDE / ОС ---
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
 
-# Локальные секреты и конфиги окружения
+# --- Локальные секреты и конфиги окружения ---
 *.local
 .env
+.env.*
 config/local.*
