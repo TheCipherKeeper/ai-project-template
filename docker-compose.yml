@@ -1,7 +1,7 @@
-# Оркестрация системы микросервисов. Детали — docs/DEPLOYMENT.md.
-# Один брокер на систему; каждый сервис — отдельный контейнер со своим Dockerfile.
+# Локальная разработка: брокер + этот сервис. Детали — docs/DEPLOYMENT.md.
+# Системный compose (все сервисы программы) — в хабе, не здесь.
 #
-# Скелет. Замени <...> под свои сервисы и выбранный брокер (Kafka / Redpanda / NATS).
+# Скелет. Замени <...> под свой сервис и выбранный брокер (Kafka / Redpanda / NATS).
 
 services:
   broker:
@@ -18,17 +18,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # <service-a>:
-  #   build: { context: ./services/<service-a> }
-  #   depends_on: [broker]
-  #   env_file: .env
-  #   # внешние порты — только если сервис принимает трафик снаружи:
-  #   # ports: ["8080:8080"]
-
-  # <service-b>:
-  #   build: { context: ./services/<service-b> }
-  #   depends_on: [broker]
-  #   env_file: .env
+  <service>:
+    build: { context: . }          # Dockerfile в корне репо
+    depends_on: [broker]
+    env_file: .env
+    # внешние порты — только если сервис принимает трафик снаружи:
+    # ports: ["8080:8080"]
 
 volumes:
   broker-data:

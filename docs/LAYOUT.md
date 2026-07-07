@@ -1,70 +1,65 @@
 # Раскладка каталогов
 
-Монорепо системы микросервисов. Каждый сервис — отдельный каталог в
-`services/<name>/`, свой стек (один на сервис) и свой `Dockerfile`. Сервисы
-общаются через брокер, заданный в корневом `docker-compose.yml`.
+Один репо = один микросервис. Внутри сервиса — **workspace из модулей**
+(«монорепо в рамках сервиса»): Rust `crates/`, Go — несколько пакетов под
+`internal/`/`pkg/`, Python — подпакеты под `src/`, TypeScript — модули под
+`src/`. Каждый модуль — отдельная спека в `docs/specs/<module>.md`.
 
 ```
-<project>/
+<service>/
   AGENTS.md                 правила работы
   README.md
-  docker-compose.yml        оркестрация: сервисы + брокер + сеть + volumes
+  docker-compose.yml        локальная разработка: брокер + этот сервис
   .env.example              переменные окружения (копируется в .env)
+  Dockerfile                образ этого сервиса
   .gitignore
   LICENSE  LICENSE-DOCS
   docs/
     INDEX.md                карта документации
-    ARCHITECTURE.md         система сервисов, брокер, потоки, деплой
+    ARCHITECTURE.md         модули, брокер, потоки, граница доверия
     BACKLOG.md              очередь задач
     STACKS.md               toolchain/layout/команды по стекам
     LAYOUT.md               этот файл
-    DEPLOYMENT.md           docker-compose: сервисы, сети, запуск локально
+    DEPLOYMENT.md           Dockerfile + локальный compose + ссылка на хаб-деплой
     specs/
-      <service>/
-        <module>.md         контракт модуля (по одному на модуль)
-      EXAMPLE.md           # пример — удали
-    adr/                    архитектурные решения
-  services/
-    <service-a>/            один сервис = один стек
-      <manifest>            pyproject.toml / go.mod / Cargo.toml / package.json
-      <lock>                uv.lock / go.sum / Cargo.lock / pnpm-lock.yaml
-      Dockerfile
-      <src>                 исходники по layout выбранного стека (см. STACKS.md)
-      README.md             (опц.) краткое описание сервиса + его стек
-    <service-b>/
-      …
-  shared/                   (опц.) общие схемы/контракты между сервисами
-                            (proto/JSON-schema/генерируемые SDK)
+      <module>.md           контракт модуля (по одному на модуль)
+      EXAMPLE.md            # пример — удали
+    adr/                    ADR (если нет хаба; иначе — в хабе)
+  <workspace>/              модули сервиса — по layout выбранного стека:
+                            crates/ (Rust), internal/ + pkg/ (Go),
+                            src/<service>/ (Python), src/ (TS)
+  <manifest>                pyproject.toml / go.mod / Cargo.toml / package.json
+  <lock>                    uv.lock / go.sum / Cargo.lock / pnpm-lock.yaml
+  shared/                   (опц.) общее внутри сервиса между модулями
 ```
 
 ## Модули и спеки
 
-Внутри сервиса код делится на модули. **Каждый модуль — отдельный спек** в
-`docs/specs/<service>/<module>.md` по канонической структуре (см.
-`docs/INDEX.md` → *Как работать со спеками*). Модуль — это:
+Каждый модуль workspace'а = отдельный спек `docs/specs/<module>.md` по
+канонической структуре (см. `docs/INDEX.md` → *Как работать со спеками*).
+Модуль — это:
 
-- Python: пакет/подпакет под `src/` сервиса.
-- Go: пакет под `internal/` или `pkg/` сервиса.
-- Rust: crate (если workspace) или модуль под `src/` сервиса.
-- TypeScript: директория/модуль под `src/` сервиса.
+- Python: пакет/подпакет под `src/<service>/`.
+- Go: пакет под `internal/` или `pkg/`.
+- Rust: crate в `crates/` (если workspace) или модуль под `src/`.
+- TypeScript: директория/модуль под `src/`.
 
 ## Где живут общие вещи
 
-- Контракты модулей — `docs/specs/<service>/<module>.md`.
-- Состав сервисов, брокер, потоки — `docs/ARCHITECTURE.md`.
-- Деплой (compose, сети, переменные) — `docs/DEPLOYMENT.md`.
-- Общие схемы между сервисами — `shared/` (если есть) + ссылка из `ARCHITECTURE.md`.
-- Кросс-сервисные конвенции (event envelope, форматы) — `docs/CONVENTIONS.md`
-  (заведи при необходимости) или во внешнем хабе.
-- ADR — `docs/adr/` (или внешний хаб — см. `AGENTS.md` → *ADR*).
+- Контракты модулей — `docs/specs/<module>.md`.
+- Состав сервиса, модули, топики, потоки — `docs/ARCHITECTURE.md`.
+- Деплой (Dockerfile, локальный compose) — `docs/DEPLOYMENT.md`.
+- Общее внутри сервиса между модулями — `shared/` (если нужно).
+- Кросс-сервисные контракты (event envelope, состав программы, системный
+  compose, ADR) — **в хабе**, не в этом репо.
+- ADR — в хабе (cybercity) или в `docs/adr/` (standalone) — см. `AGENTS.md` → *ADR*.
 
-## Новый сервис
+## Новый модуль
 
-Чек-лист добавления сервиса в систему:
+Чек-лист добавления модуля в workspace:
 
-1. `services/<name>/` с манифестом выбранного стека (команды — `docs/STACKS.md`).
-2. `services/<name>/Dockerfile`.
-3. Запись в `docker-compose.yml` (build context, depends_on брокера, env).
-4. Спеки модулей: `docs/specs/<name>/<module>.md`.
-5. Строка в таблице сервисов `docs/ARCHITECTURE.md`.
-6. Если сервис публикует/читает топики — описать в разделе «Брокер» `ARCHITECTURE.md`.
+1. Каталог модуля по layout выбранного стека (команды — `docs/STACKS.md`).
+2. Запись в манифесте/конфиге workspace'а, если требуется (Cargo workspace, tsconfig paths, …).
+3. Спека: `docs/specs/<module>.md`.
+4. Строка в таблице модулей `docs/ARCHITECTURE.md`.
+5. Если модуль публикует/читает топики — отметить в разделе «Брокер» `ARCHITECTURE.md`.
