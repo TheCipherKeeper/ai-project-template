@@ -1,0 +1,125 @@
+# Стеки
+
+Микросервис реализуется на одном из четырёх стеков. Стек выбирается один раз
+для всего репо — правило «один сервис = один язык». Здесь — toolchain, layout
+и команды для каждого. Сводная таблица команд — в `AGENTS.md`.
+
+> Перед стартом удали секции стеков, которые не выбраны, оставь один.
+
+## Python
+
+- **Runtime:** Python 3.12+.
+- **Менеджер:** `uv` (рекомендуется) или `pip` + `venv`.
+- **Layout:** `src/<service>/`, `tests/`, `pyproject.toml`.
+- **Линт:** `ruff` (формат + линтер). Опционально `mypy`/`pyright` для типов.
+- **Тесты:** `pytest`.
+- **Сборка:** wheel через `uv build` / `python -m build`.
+
+```
+pyproject.toml
+src/<service>/
+  __init__.py
+  __main__.py        # точка входа
+tests/
+uv.lock
+```
+
+Команды:
+
+```
+ruff format --check .
+ruff check .
+pytest
+uv build
+```
+
+## Go
+
+- **Runtime:** Go 1.22+.
+- **Менеджер:** стандартные модули (`go.mod`).
+- **Layout:** `cmd/<service>/main.go`, `internal/`, `pkg/` (если нужно).
+- **Линт:** `gofmt`, `go vet`; опционально `golangci-lint run`.
+- **Тесты:** `go test ./...`.
+- **Сборка:** `go build`.
+
+```
+go.mod
+cmd/
+  <service>/
+    main.go          # точка входа
+internal/            # приватный код сервиса
+pkg/                 # (опц.) переиспользуемый код
+bin/                 # артефакты сборки (gitignored)
+```
+
+Команды:
+
+```
+gofmt -l .           # пусто = ОК
+go vet ./...
+go test ./...
+go build -o bin/<service> ./cmd/<service>
+```
+
+## Rust
+
+- **Runtime:** Rust stable.
+- **Менеджер:** `cargo`. Workspace опционален (`crates/`).
+- **Layout:** один crate или workspace `crates/<name>`.
+- **Линт:** `cargo fmt`, `cargo clippy`.
+- **Тесты:** `cargo test`.
+- **Сборка:** `cargo build --release`.
+
+```
+Cargo.toml
+Cargo.lock
+src/
+  main.rs            # точка входа
+  lib.rs             # (опц.)
+tests/               # интеграционные
+crates/              # (опц. workspace)
+```
+
+Команды:
+
+```
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+cargo build --release
+```
+
+## TypeScript (бэкенд)
+
+- **Runtime:** Node 20+ (по умолчанию). Deno/Bun допустимы — зафиксируй.
+- **Менеджер:** `pnpm` (рекомендуется) или `npm`.
+- **Layout:** `src/`, `package.json`, `tsconfig.json`, `vitest`.
+- **Линт:** ESLint или Biome; типы через `tsc --noEmit`.
+- **Тесты:** `vitest` (или `node --test`).
+- **Сборка:** `tsc` или бандлер (esbuild/tsup).
+
+```
+package.json
+pnpm-lock.yaml
+tsconfig.json
+src/
+  index.ts           # точка входа
+tests/
+```
+
+Команды:
+
+```
+pnpm lint
+tsc --noEmit
+pnpm test
+pnpm build
+```
+
+## Общие правила для всех стеков
+
+- Команды `lint / test / build` — единый набор для репо, закрепи его в `AGENTS.md`.
+- Lock-файлы коммитятся (`uv.lock`, `go.sum`, `Cargo.lock`, `pnpm-lock.yaml`),
+  но не правятся руками.
+- Артефакты сборки и кэши — в `.gitignore`.
+- Зависимости добавляются с обоснованием в коммите/спеке.
