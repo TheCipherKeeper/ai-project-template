@@ -37,6 +37,7 @@ docs/
   STACKS.md             toolchain/layout/команды по стекам
   LAYOUT.md             раскладка каталогов репозитория сервиса
   DEPLOYMENT.md         Dockerfile + локальный compose + ссылка на хаб-деплой
+  VERIFICATION.md       verification gate: соответствие канону на каждый коммит
   specs/<module>.md     контракты модулей (по одному на модуль)
   adr/                  архитектурные решения (или в хабе — см. AGENTS.md)
 <workspace>/            модули сервиса — по layout выбранного стека
@@ -67,6 +68,7 @@ docs/
 | `docs/STACKS.md` | Toolchain, layout и команды для Python/Go/Rust/TS |
 | `docs/LAYOUT.md` | Раскладка каталогов репозитория сервиса |
 | `docs/DEPLOYMENT.md` | Dockerfile, локальный compose, ссылка на хаб-деплой |
+| `docs/VERIFICATION.md` | Verification gate: проверка соответствия канону на каждый коммит |
 | `docs/specs/` | Контракты модулей (по одному файлу на модуль) |
 | `docs/adr/` | Архитектурные решения (ADR) |
 

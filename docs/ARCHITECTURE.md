@@ -49,6 +49,8 @@ graph LR
 
 - **Брокер:** <Kafka | Redpanda | NATS>
 - **Адрес (local dev):** из `docker-compose.yml`, сервис `broker`.
+- **Контракты хаба:** `CONVENTIONS@v<N>` — пин версии, по которой гейт
+  проверяет сервис (см. `docs/VERIFICATION.md`). Бамп пина — отдельным PR.
 
 Топики сервиса:
 
@@ -84,6 +86,7 @@ graph LR
 - Сервис — контейнер со своим `Dockerfile` (детали — `docs/DEPLOYMENT.md`).
 - Локальная разработка — `docker-compose.yml` (брокер + этот сервис).
 - Системный compose (все сервисы вместе) — в хабе, не здесь.
+- Соответствие хабу (на пиннённой версии контрактов) проверяется verification-гейтом — см. `docs/VERIFICATION.md`.
 
 ## Ссылки
 

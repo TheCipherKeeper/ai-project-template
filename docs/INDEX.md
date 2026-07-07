@@ -12,8 +12,9 @@
 5. `ARCHITECTURE.md` — архитектура сервиса (модули, брокер, потоки, граница).
 6. `LAYOUT.md` — раскладка каталогов репозитория (workspace модулей).
 7. `DEPLOYMENT.md` — Dockerfile + локальный compose.
-8. `STACKS.md` — toolchain и layout выбранного стека.
-9. `specs/<module>.md` — контракт нужного модуля.
+8. `VERIFICATION.md` — verification gate (соответствие канону на коммит).
+9. `STACKS.md` — toolchain и layout выбранного стека.
+10. `specs/<module>.md` — контракт нужного модуля.
 
 ## Файлы
 
@@ -24,6 +25,7 @@
 | ARCHITECTURE.md | Сервис: модули, брокер, потоки данных, граница доверия |
 | LAYOUT.md | Раскладка каталогов: workspace модулей, спеки, общее |
 | DEPLOYMENT.md | Dockerfile, локальный compose (брокер + сервис), ссылка на хаб-деплой |
+| VERIFICATION.md | Verification gate: рёбра графа, версионирование контрактов, conformance/behavioral, invariant-чеклист |
 | STACKS.md | Toolchain, layout и команды для Python/Go/Rust/TS |
 | specs/<mod>.md | Контракты модулей сервиса — по одному на модуль |
 | adr/*.md | ADR (если нет хаба; иначе — в хабе) |
