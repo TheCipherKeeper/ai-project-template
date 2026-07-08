@@ -1,26 +1,26 @@
-# AGENTS.md — правила работы в репозитории
+# AGENTS.md — правила работы в репозитории методологии
 
-Точка входа для людей и AI-агентов. Здесь только **правила** (что можно/нельзя,
-ветвление, коммиты, язык) и указатели. Процедуры — в `docs/guide/` (по фазам),
-факты — в `docs/refs/`. **Начни с `docs/INDEX.md`** — роутер «ситуация → читай».
+Точка входа для людей и AI-агентов, работающих **над самой методологией**.
+Здесь только правила (что можно/нельзя, ветвление, коммиты, язык, проверка
+документов) и указатели. Процедуры — в `docs/guide/` (по фазам), факты — в
+`docs/refs/`. **Начни с `docs/INDEX.md`** — роутер «ситуация → читай».
 
-> Это шаблон **одного микросервиса**. Один репо = один сервис. Внутри сервис
-> может быть workspace'ом из нескольких модулей («монорепо в рамках сервиса»),
-> у каждого модуля своя спека. Сервис реализуется **на одном из стеков**:
-> Python, Go, Rust, TypeScript (бэкенд). Правило: один сервис — один язык.
-> Сервис — клиент **брокера** (одного на систему; Kafka/Redpanda/NATS) и
-> деплоится **контейнером** со своим `Dockerfile`.
+> **Что это за репо.** Это **центральная методология** построения
+> микросервисного проекта — читается как гайд, не инстанцируется как сервис.
+> Здесь живут: общая методология (гайд по фазам), факты (`refs/`, включая
+> уровень системы — топология репозиториев и общение микросервисов) и
+> **`skeletons/`** — стартовые наборы файлов хаба и сервиса, которые
+> **копируются** при инстанциации новых репо. Сами сервисы и хаб — отдельные
+> репо; они **не несут** guide/refs, а ссылаются на этот репо методологии.
 >
-> **Программа целиком** — несколько сервисов + хаб + системный compose +
-> COMPOSITION/CONVENTIONS/ADR — живёт в хабе и в отдельных репо сервисов.
-> Этот репо описывает один сервис. Кросс-сервисные контракты, системная
-> топология и ADR — в хабе.
+> Edge-модель верификации: `методология → хаб → сервисы`. Этот репо — корень
+> авторитета. Подробно — `docs/refs/VERIFICATION.md`; топология репозиториев —
+> `docs/refs/TOPOLOGY.md`.
 
 ## Документация (приоритет)
 
-В порядке убывания: хаб (если есть) → `AGENTS.md` (этот файл) →
-`docs/guide/` (процедуры) → `docs/refs/` (факты) → `docs/ARCHITECTURE.md`
-/`docs/BACKLOG.md`/`docs/specs/` (рабочие артефакты) → код.
+В порядке убывания: этот `AGENTS.md` → `docs/guide/` (процедуры) →
+`docs/refs/` (факты) → `skeletons/` (стартовые наборы).
 
 `docs/INDEX.md` — роутер. Если документы противоречат друг другу — побеждает
 старший. Расхождение — повод для ADR (`docs/guide/60-adr.md`).
@@ -40,75 +40,90 @@ vX.Y.Z          ← тег на main (стабильная версия)
 - **Релизы — тегами**, не ветками: стабильная версия = тег `vX.Y.Z` (semver) на
   `main`. Release-ветки не заводятся. Процедура — `docs/guide/70-release.md`.
 
-Процедура работы в ветке — `docs/guide/30-implement-task.md`.
+## Проверка перед коммитом (docs-verify)
 
-## Команды проверки (выбранный стек)
+Здесь нет кода приложения → нет `lint`/`test`/`build` стека. Вместо них —
+**проверка документов и скелетов** (conformance, non-blocking у агента;
+на CI — blocking):
 
-Стек выбирается один раз для всего репо. **Заполни одну строку** под выбранный
-стек, удали остальные. Полная конфигурация toolchain'а — `docs/refs/STACKS.md`.
-Прогон перед коммитом — `docs/guide/40-verify.md`.
+- **Ссылки разрешаются:** все `docs/...md` и `skeletons/...` ссылки в
+  `README`/`AGENTS`/`INDEX`/`guide/`/`refs/`/`skeletons/**` ведут на
+  существующие файлы. Нет висячих указателей.
+- **Нет дублирования фактов:** факт живёт в одном авторитете (`refs/TOPOLOGY`,
+  `refs/COMMUNICATION`, `refs/VERIFICATION`, …) и только инлайн-минимумом
+  summarized в guide-фазах. Сервис-rules — только в
+  `skeletons/service/AGENTS.md`; правила работы над методологией — только
+  здесь. Дубли фактов/правил запрещён.
+- **Идентичность корня:** в корне методология-репо **нет** сервис-артефактов
+  (`ARCHITECTURE.md`/`BACKLOG.md`/`specs/`/`docker-compose.yml`/`.env*`).
+  Они — в `skeletons/service/`.
+- **Скелеты самодостаточны:** `skeletons/service/` и `skeletons/hub/` можно
+  скопировать в новый репо и начать работать; указатели `<methodology-repo>`
+  осмысленны.
+- **Self-containment guide:** фаза `guide/N-*.md` читается одна и выполнима
+  в сервис-репо (заголовок-блок + инлайн-минимум + не более чем ссылки на
+  центральные refs).
 
-| Стек | lint | test | build |
-|---|---|---|---|
-| **Python** | `ruff format --check . && ruff check .` | `pytest` | `uv build` |
-| **Go** | `gofmt -l . && go vet ./...` | `go test ./...` | `go build -o bin/<service> ./cmd/<service>` |
-| **Rust** | `cargo fmt --check && cargo clippy -- -D warnings` | `cargo test` | `cargo build --release` |
-| **TypeScript** | `pnpm lint && tsc --noEmit` | `pnpm test` | `pnpm build` |
-
-> Go: `gofmt -l .` должен вывести пустоту — это и есть «fmt --check».
-> Python: опционально `mypy`/`pyright` для типизации.
-> TypeScript: runtime — Node (по умолчанию); Deno/Bun допустимы, но зафиксируй в `docs/refs/STACKS.md`.
+Теория verification gate (рёбра, conformance vs behavioral) —
+`docs/refs/VERIFICATION.md`.
 
 ## Краткие указатели на процедуры
 
 - **Войти в проект** — `docs/guide/00-bootstrap.md`.
-- **Описать архитектуру** (модули, брокер, топики, граница) — `docs/guide/10-architecture.md`.
+- **Описать архитектуру** — `docs/guide/10-architecture.md`.
 - **Добавить модуль / написать спеку** — `docs/guide/20-define-module.md`.
-- **Взять задачу из бэклога, реализовать** (рабочий цикл) — `docs/guide/30-implement-task.md`.
-- **Проверить перед коммитом** (verification gate) — `docs/guide/40-verify.md`;
-  полная теория — `docs/refs/VERIFICATION.md`.
-- **Запустить локально** (брокер + сервис) — `docs/guide/50-deploy.md`;
-  структура compose/Dockerfile — `docs/refs/DEPLOYMENT.md`.
-- **Записать архитектурное решение (ADR)** — `docs/guide/60-adr.md`.
+- **Взять задачу из бэклога, реализовать** — `docs/guide/30-implement-task.md`.
+- **Проверить перед коммитом** — `docs/guide/40-verify.md`.
+- **Запустить локально** — `docs/guide/50-deploy.md`.
+- **Записать ADR** — `docs/guide/60-adr.md`.
 - **Выпустить стабильную версию (тег)** — `docs/guide/70-release.md`.
+
+Системные факты — `docs/refs/TOPOLOGY.md` (структура репозиториев),
+`docs/refs/COMMUNICATION.md` (общение микросервисов).
 
 ## Что можно
 
-- Писать код в модулях сервиса (workspace) и (опц.) `shared/`.
-- Менять конфигурацию сборки/манифесты с обоснованием.
-- Менять `Dockerfile`, корневой `docker-compose.yml` (локальная разработка:
-  брокер + сервис), `.env.example` с обоснованием.
-- Обновлять `docs/` (включая `guide/`, `refs/`) и спеки.
-- Создавать feature-ветки, коммитить, пушить, открывать PR в `main`.
-- Заводить новые модули в workspace'е (с соответствующей спекой — фаза 20).
+- Редактировать `docs/guide/` (процедуры), `docs/refs/` (факты), `docs/INDEX.md`
+  (роутер) — с самодостаточностью фаз и без дублирования фактов.
+- Редактировать `skeletons/service/` и `skeletons/hub/` (стартовые наборы):
+  синхронизировать их с актуальной методологией.
+- Редактировать корневые `README.md`/`AGENTS.md`.
+- Создавать feature-ветки, коммитить, пушить, открывать PR в `main`, ставить
+  теги `vX.Y.Z`.
+- Заводить ADR в `skeletons/{service,hub}/docs/adr/` (мета-шаблоны скелетов).
 
 ## Что нельзя
 
-- Коммитить напрямую в `main`.
-- Заводить `dev`/release-ветки — интеграция через PR в `main`, версии — тегами.
-- Смешивать стеки (один сервис — один язык).
-- Вводить системный multi-service compose или кросс-сервисные контракты в этом
-  репо — это зона хаба.
-- Создавать ADR вне отведённого места (`docs/guide/60-adr.md`).
-- Добавлять зависимости (включая образы в compose) без обоснования.
-- Выдавать stub за реальную реализацию. Честно помечать: что placeholder, что TODO.
-- Трогать lock-файлы (`Cargo.lock`, `go.sum`, `pnpm-lock.yaml`, `uv.lock`),
-  конфиги окружения (`.env`), артефакты сборки без одобрения.
+- Коммитить напрямую в `main`; заводить `dev`/release-ветки.
+- Дублировать факты: та же истина в двух местах. Один факт — один авторитет в
+  `refs/`; остальное — инлайн-минимум + ссылка.
+- Дублировать правила: service-rules — только в `skeletons/service/AGENTS.md`;
+  правила работы над методологией — только здесь.
+- Класть в корень сервис-артефакты (`ARCHITECTURE.md`, `BACKLOG.md`, `specs/`,
+  `docker-compose.yml`, `.env*`, `Dockerfile`). Их место — `skeletons/service/`.
+- Хранить в `skeletons/` код приложения или lock-файлы — скелеты несут только
+  стартовые файлы и шаблоны.
+- Вводить прямую service-to-service связность в обход брокера в `refs/` и в
+  `skeletons/hub/CONVENTIONS.md` — общение только через брокер
+  (`docs/refs/COMMUNICATION.md`).
+- Менять контракт `CONVENTIONS@vN` задним числом в `skeletons/hub/CONVENTIONS.md`
+  — выпущенная версия неизменна; новое — `@vN+1`.
+- Трогать lock-файлы, конфиги окружения (`.env`) без одобрения.
+- Выдавать stub за реальную реализацию. Честно помечать: что placeholder, что
+  TODO.
 
 ## Коммиты
 
-Conventional Commits. Полностью на английском (или на языке проекта — задай в *Язык*).
+Conventional Commits. Scope — `guide`/`refs`/`skeletons`/`docs`.
 
 ```
-feat(<module>): add zfs-snapshot fs probe
-fix(<module>): reject path traversal in HostBridge
-docs: update ARCHITECTURE.md with module matrix
-refactor(<module>): extract envelope signing
-chore(deploy): pin redpanda image in compose
+feat(refs): add COMMUNICATION reference (broker, envelope, pin)
+fix(skeletons): align service AGENTS with verification gate
+docs(guide): clarify "в репо сервиса" in phase 30
+chore: bump template version
 ```
 
-Scope — имя модуля или `deploy`/`docs`. Breaking changes —
-`BREAKING CHANGE:` в теле.
+Breaking changes — `BREAKING CHANGE:` в теле.
 
 ## Язык
 

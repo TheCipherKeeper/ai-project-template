@@ -1,0 +1,36 @@
+# Системный compose: все сервисы программы + брокер.
+# Это НЕ локальный compose сервиса (тот — в сервис-репо, брокер + один сервис).
+# Здесь — запуск всей программы вместе; образы сервисов собраны заранее
+# (или build: context на локальный клон сервис-репо).
+#
+# Скелет. Замени <...> под программу. Структура compose —
+# <methodology-repo>/docs/refs/DEPLOYMENT.md.
+
+services:
+  broker:
+    # Один брокер на систему: Kafka / Redpanda / NATS. Пример — Redpanda.
+    image: redpandadata/redpanda:latest
+    command: redpanda start --overprovisioned --smp 1 --memory 1G
+    ports:
+      - "9092:9092"
+    volumes:
+      - broker-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  <service-a>:
+    image: <registry>/<service-a>:<tag>      # собранный образ сервис-репо
+    depends_on: [broker]
+    env_file: .env                            # per-сервис конфиг (брокер-адрес, пин CONVENTIONS@vN, …)
+    # внешние порты — только если принимает трафик снаружи
+
+  <service-b>:
+    image: <registry>/<service-b>:<tag>
+    depends_on: [broker]
+    env_file: .env
+
+volumes:
+  broker-data:
