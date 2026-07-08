@@ -41,6 +41,7 @@ docs/
     40-verify.md             проверка перед коммитом
     50-deploy.md             запуск локально
     60-adr.md                записать решение
+    70-release.md            выпустить версию (тег)
   refs/                 авторитетные факты (одна правда):
     STACKS.md  LAYOUT.md  DEPLOYMENT.md  VERIFICATION.md  SPEC.md
   ARCHITECTURE.md       рабочий артефакт: модули, брокер, потоки, граница
@@ -80,12 +81,15 @@ docs/
 Полный рабочий цикл — `docs/guide/30-implement-task.md`. Кратко:
 
 ```bash
-git checkout dev && git pull && git checkout -b feat/<задача>
+git checkout main && git pull && git checkout -b feat/<задача>
 # внести изменения; проверка перед коммитом — docs/guide/40-verify.md
 git commit -m "feat(<module>): ..."
 git push
-# открыть PR в dev
+# открыть PR в main
 ```
+
+Стабильные версии — тегами `vX.Y.Z` на `main` (`docs/guide/70-release.md`),
+без release-веток.
 
 Локальный запуск (брокер + этот сервис) — `docs/guide/50-deploy.md`:
 

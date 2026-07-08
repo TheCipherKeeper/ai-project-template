@@ -49,7 +49,7 @@ graph LR
      его клиент. Формат сообщений — из хаба CONVENTIONS.md, не свой. -->
 
 - **Брокер:** <Kafka | Redpanda | NATS>
-- **Адрес (local dev):** из `docker-compose.yml`, сервис `broker`.
+- **Адрес (локальная разработка):** из `docker-compose.yml`, сервис `broker`.
 - **Контракты хаба:** `CONVENTIONS@v<N>` — пин версии, по которой гейт
   проверяет сервис (см. `docs/refs/VERIFICATION.md`, процедура — `docs/guide/40-verify.md`).
   Бамп пина — отдельным PR.

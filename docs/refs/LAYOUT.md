@@ -24,7 +24,7 @@
     BACKLOG.md              рабочий артефакт: очередь задач
     guide/                  фазы-плейбуки (самодостаточные)
       00-bootstrap.md  10-architecture.md  20-define-module.md
-      30-implement-task.md  40-verify.md  50-deploy.md  60-adr.md
+      30-implement-task.md  40-verify.md  50-deploy.md  60-adr.md  70-release.md
     refs/                   авторитетные факты (одна правда)
       STACKS.md  LAYOUT.md(этот файл)  DEPLOYMENT.md  VERIFICATION.md  SPEC.md
     specs/
