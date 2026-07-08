@@ -27,7 +27,6 @@
     specs/
       <module>.md           контракт модуля (по одному на модуль)
       EXAMPLE.md            # пример — удали
-    adr/                    ADR сервиса (если нет хаба; иначе — в хабе)
   <workspace>/              модули сервиса — по layout выбранного стека:
                             crates/ (Rust), internal/ + pkg/ (Go),
                             src/<service>/ (Python), src/ (TS)
@@ -49,9 +48,7 @@
 - `docker-compose.yml`, `.env.example`, `Dockerfile`, `.gitignore` — стартовое
   окружение.
 - `docs/ARCHITECTURE.md`, `docs/BACKLOG.md`, `docs/specs/EXAMPLE.md` — скелеты
-  рабочих артефактов.
-- `docs/adr/_TEMPLATE.md`, `docs/adr/0001-record-architecture-decisions.md` —
-  ADR.
+  рабочих артефактов. ADR — в хабе (`<hub>/adr/`), в сервис-репо не копируется.
 
 Код, `<workspace>/`, `<manifest>`, `<lock>` — заводятся под выбранный стек по
 фазе `docs/guide/00-bootstrap.md`.
@@ -76,7 +73,7 @@
 - Кросс-сервисные контракты (event envelope, состав программы, системный
   compose, ADR) — **в хабе**, не в этом репо (`docs/refs/TOPOLOGY.md`,
   `docs/refs/COMMUNICATION.md`).
-- ADR — в хабе или в `docs/adr/` (standalone) — см. `docs/guide/60-adr.md`.
+- ADR — в хабе (`<hub>/adr/`) — см. `docs/guide/60-adr.md`.
 
 ## Interface layout
 
@@ -93,7 +90,6 @@
   .gitignore
   docs/
     ARCHITECTURE.md        манифест потребления: сервисы/эндпоинты, страницы/роуты
-    adr/                   ADR интерфейса (если нет хаба; иначе — в хабе)
   src/                     React: main.tsx, pages/, components/, hooks/, stores/
   public/
   package.json

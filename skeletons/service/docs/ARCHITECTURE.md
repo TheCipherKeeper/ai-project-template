@@ -60,8 +60,7 @@ graph LR
 |---|---|---|
 | `<topic>` | publish / consume | … |
 
-Формат сообщений (event envelope) — хаб `CONVENTIONS.md` (или `docs/CONVENTIONS.md`
-в standalone).
+Формат сообщений (event envelope) — хаб `CONVENTIONS.md`.
 
 ## Потоки данных
 
@@ -106,4 +105,4 @@ graph LR
 
 - Хаб `COMPOSITION.md` — состав программы.
 - Хаб `CONVENTIONS.md` — event envelope, кросс-сервисные конвенции.
-- Хаб `adr/` — архитектурные решения (или `docs/adr/` в standalone).
+- Хаб `adr/` — архитектурные решения программы.
