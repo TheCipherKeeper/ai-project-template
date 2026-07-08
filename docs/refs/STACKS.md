@@ -143,21 +143,6 @@ pnpm build
 - **Сборка:** `vite build` → `dist/` (статика, раздаётся nginx/CDN;
   деплой — `docs/refs/DEPLOYMENT.md` → *interface*).
 
-```
-package.json
-pnpm-lock.yaml
-tsconfig.json
-vite.config.ts
-src/
-  main.tsx
-  pages/
-  components/
-  hooks/
-  stores/
-public/
-dist/              # артефакт сборки (gitignored)
-```
-
 Команды:
 
 ```

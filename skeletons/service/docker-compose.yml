@@ -1,5 +1,6 @@
-# Локальная разработка: брокер + этот сервис. Процедура — docs/guide/50-deploy.md,
-# структура compose — docs/refs/DEPLOYMENT.md.
+# Локальная разработка: брокер + этот сервис. Процедура —
+# <methodology-repo>/docs/guide/50-deploy.md, структура compose —
+# <methodology-repo>/docs/refs/DEPLOYMENT.md.
 # Системный compose (все сервисы программы) — в хабе, не здесь.
 #
 # Скелет. Замени <...> под свой сервис и выбранный брокер (Kafka / Redpanda / NATS).
