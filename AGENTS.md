@@ -86,7 +86,8 @@ gitGraph
 - Редактировать `skeletons/service/`, `skeletons/hub/` и `skeletons/interface/`
   — синхронизировать со актуальной методологией.
 - Создавать feature-ветки, PR в `main`, теги `vX.Y.Z`.
-- Заводить ADR в `skeletons/{service,hub}/docs/adr/`.
+- Заводить ADR-шаблоны в `skeletons/{service,interface}/docs/adr/` и
+  `skeletons/hub/adr/` (у хаба ADR в корне репо, не в `docs/adr/`).
 
 ## Что нельзя
 

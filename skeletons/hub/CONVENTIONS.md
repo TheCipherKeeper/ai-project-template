@@ -52,9 +52,10 @@
 
 - Общение — **только через брокер**; прямые service-to-service вызовы запрещены.
 - Не изобретать свой envelope в сервисах — только этот.
-- Backward-compatible изменения (новое опц. поле) → minor bump (`@v1` → `@v1`,
-  если поле опц., можно не bumpать; фиксируй политику). Breaking → major
-  (`@v2`).
+- Backward-compatible изменения (новое опц. поле) — **без bump**: остаться
+  `@vN` (старые consumer'ы не ломаются). Breaking — **major bump**:
+  `@vN` → `@vN+1` (напр. `@v1` → `@v2`) отдельным PR. Схема целочисленная
+  major-only (`@v1`, `@v2`, …) — minor-бампа нет.
 - Idempotency: consumer дедуплирует по `event_id`.
 
 ## ADR-ссылки
