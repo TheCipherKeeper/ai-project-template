@@ -2,10 +2,11 @@
 
 > Пример канонической структуры спеки. Скопируй под свой модуль, удали этот
 > блок-комментарий. Спек описывает контракт (что), не реализацию (как).
-> Канон структуры (7 секций) и чек-лист — `docs/refs/SPEC.md`; **внутренняя
-> архитектура модуля (usecases/ports/domain/adapters) — `docs/refs/MODULE.md`**;
-> процедура заведения модуля — `docs/guide/20-define-module.md`. Модуль = каталог
-> выбранного стека (см. `docs/refs/LAYOUT.md`); команды проверки —
+> Канон структуры (7 секций) и чек-лист — `<methodology-repo>/docs/refs/SPEC.md`;
+> **внутренняя архитектура модуля (usecases/ports/domain/adapters) —
+> `<methodology-repo>/docs/refs/MODULE.md`**; процедура заведения модуля —
+> `<methodology-repo>/docs/guide/20-define-module.md`. Модуль = каталог
+> выбранного стека (см. `<methodology-repo>/docs/refs/LAYOUT.md`); команды проверки —
 > в `AGENTS.md` → *Команды проверки (выбранный стек)*.
 
 Краткое описание модуля: какую роль играет, какие границы ответственности.
@@ -13,7 +14,7 @@
 ## Интерфейсы
 
 > **Юзкейсы** модуля. На каждый — input port (сигнатура `execute(In) -> Out`/
-> ошибки) и потребляемые output ports (из `ports/`, см. `docs/refs/MODULE.md`).
+> ошибки) и потребляемые output ports (из `ports/`, см. `<methodology-repo>/docs/refs/MODULE.md`).
 
 - `CreateThing.execute(input: CreateThingInput) -> Result<Thing, ModuleError>` —
   основной юзкейс. Потребляет output ports: `ThingRepo`, `EventPublisher`.

@@ -1,9 +1,10 @@
 # Архитектура
 
-> Скелет одного микросервиса. Стек — `docs/refs/STACKS.md`, раскладка workspace'а —
-> `docs/refs/LAYOUT.md`, деплой — `docs/guide/50-deploy.md` + `docs/refs/DEPLOYMENT.md`.
-> Процедура заполнения — `docs/guide/10-architecture.md`. Заполни секции под свой
-> сервис. Структура секций читается и людьми, и агентами.
+> Скелет одного микросервиса. Стек — `<methodology-repo>/docs/refs/STACKS.md`,
+> раскладка workspace'а — `<methodology-repo>/docs/refs/LAYOUT.md`, деплой —
+> `<methodology-repo>/docs/guide/50-deploy.md` + `<methodology-repo>/docs/refs/DEPLOYMENT.md`.
+> Процедура заполнения — `<methodology-repo>/docs/guide/10-architecture.md`. Заполни
+> секции под свой сервис. Структура секций читается и людьми, и агентами.
 >
 > Состав программы (несколько сервисов, системная топология) — в хабе
 > `COMPOSITION.md`. Здесь — только этот сервис и его граница с системой.
@@ -51,7 +52,7 @@ graph LR
 - **Брокер:** <Kafka | Redpanda | NATS>
 - **Адрес (локальная разработка):** из `docker-compose.yml`, сервис `broker`.
 - **Контракты хаба:** `CONVENTIONS@v<N>` — пин версии, по которой гейт
-  проверяет сервис (см. `docs/refs/VERIFICATION.md`, процедура — `docs/guide/40-verify.md`).
+  проверяет сервис (см. `<methodology-repo>/docs/refs/VERIFICATION.md`, процедура — `<methodology-repo>/docs/guide/40-verify.md`).
   Бамп пина — отдельным PR.
 
 Топики сервиса:
@@ -95,11 +96,11 @@ graph LR
 ## Деплой
 
 - Сервис — контейнер со своим `Dockerfile`; локальная разработка —
-  `docker-compose.yml` (брокер + этот сервис). Детали — `docs/refs/DEPLOYMENT.md`,
-  запуск — `docs/guide/50-deploy.md`.
+  `docker-compose.yml` (брокер + этот сервис). Детали —
+  `<methodology-repo>/docs/refs/DEPLOYMENT.md`, запуск — `<methodology-repo>/docs/guide/50-deploy.md`.
 - Системный compose (все сервисы вместе) — в хабе, не здесь.
 - Соответствие хабу (на пиннённой версии контрактов) — verification-гейт
-  (`docs/refs/VERIFICATION.md`, процедура — `docs/guide/40-verify.md`).
+  (`<methodology-repo>/docs/refs/VERIFICATION.md`, процедура — `<methodology-repo>/docs/guide/40-verify.md`).
 
 ## Ссылки
 
