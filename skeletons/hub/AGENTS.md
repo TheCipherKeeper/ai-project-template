@@ -17,10 +17,15 @@
 
 ## Модель ветвления
 
-```
-main            ← PR из feature-веток
-feat/<задача>   ← от main, удаляется после merge
-vX.Y.Z          ← тег на main (стабильная версия)
+```mermaid
+gitGraph
+  commit id: "init"
+  commit
+  branch feat
+  commit
+  checkout main
+  merge feat
+  commit tag: "vX.Y.Z"
 ```
 
 - Прямой коммит в `main` — **запрещён**. Только feature-ветка + PR.

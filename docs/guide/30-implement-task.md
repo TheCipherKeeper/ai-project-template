@@ -21,9 +21,9 @@
    ```bash
    git checkout main && git pull && git checkout -b feat/<задача>
    ```
-   Модель ветвления: `main ← PR из feature-веток`; `feat/<задача>` от `main`,
-   удаляется после merge. **Прямой коммит в `main` запрещён.** Стабильные
-   версии — тегами `vX.Y.Z` на `main` (`docs/guide/70-release.md`).
+   Модель ветвления — `AGENTS.md` → *Модель ветвления* (коротко: `feat/<задача>`
+   от `main`, удаляется после merge; прямой коммит в `main` запрещён; релизы —
+   тегами `vX.Y.Z`, `docs/guide/70-release.md`).
 4. **Код + тесты.** Реализуй по пунктам «Что есть» в спеке; напиши тесты
    на каждый пункт «Что есть».
 5. **Проверить перед коммитом** — фаза `docs/guide/40-verify.md`
@@ -39,8 +39,8 @@
    docs: update ARCHITECTURE.md with module matrix
    refactor(<module>): extract envelope signing
    ```
-   Breaking changes — `BREAKING CHANGE:` в теле. Сообщения полностью на
-   английском (или на языке проекта — см. `AGENTS.md` → *Язык*).
+   Breaking changes — `BREAKING CHANGE:` в теле. Язык коммитов — `AGENTS.md` →
+   *Язык*.
 9. **Пуш, открыть PR в `main`.** После merge — ветка удаляется.
 
 ## Канон (где правда)

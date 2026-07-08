@@ -85,12 +85,12 @@ graph LR
 
 ## Деплой
 
-- Сервис — контейнер со своим `Dockerfile` (детали — `docs/refs/DEPLOYMENT.md`;
-  запуск локально — `docs/guide/50-deploy.md`).
-- Локальная разработка — `docker-compose.yml` (брокер + этот сервис).
+- Сервис — контейнер со своим `Dockerfile`; локальная разработка —
+  `docker-compose.yml` (брокер + этот сервис). Детали — `docs/refs/DEPLOYMENT.md`,
+  запуск — `docs/guide/50-deploy.md`.
 - Системный compose (все сервисы вместе) — в хабе, не здесь.
-- Соответствие хабу (на пиннённой версии контрактов) проверяется verification-гейтом —
-  см. `docs/refs/VERIFICATION.md` (процедура — `docs/guide/40-verify.md`).
+- Соответствие хабу (на пиннённой версии контрактов) — verification-гейт
+  (`docs/refs/VERIFICATION.md`, процедура — `docs/guide/40-verify.md`).
 
 ## Ссылки
 
