@@ -62,8 +62,8 @@ guide/refs, а ссылаются на этот репо методологии 
 | `docs/ARCHITECTURE.md` | Архитектура сервиса: модули, брокер, потоки, граница |
 | `docs/BACKLOG.md` | Очередь задач (строгая, сверху вниз) |
 | `docs/specs/<module>.md` | Контракты модулей — по одному на модуль |
-| `docs/adr/` | ADR сервиса (или в хабе — см. `docs/refs/TOPOLOGY.md`) |
 | `COMPOSITION.md` / `CONVENTIONS.md` | Состав программы и event envelope (в хабе) |
+| `<hub>/adr/` | ADR программы — в хабе (см. `docs/refs/TOPOLOGY.md`) |
 
 ## Принципы
 
