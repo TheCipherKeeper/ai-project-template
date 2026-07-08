@@ -84,6 +84,8 @@ gitGraph
 - Коммитить напрямую в `main`; заводить `dev`/release-ветки.
 - Дублировать факты (один факт — один авторитет в `refs/`) или правила
   (service-rules — только в `skeletons/service/AGENTS.md`).
+- Отклоняться от usecase-структуры модуля (`docs/refs/MODULE.md`) — отклонение
+  через ADR (`docs/guide/60-adr.md`), не тихим отступлением.
 - Класть в корень сервис-артефакты (`ARCHITECTURE.md`, `BACKLOG.md`, `specs/`,
   `docker-compose.yml`, `.env*`, `Dockerfile`) — их место `skeletons/service/`.
 - Хранить в `skeletons/` код приложения или lock-файлы — только стартовые

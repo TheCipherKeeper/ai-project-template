@@ -17,8 +17,8 @@
 - **`docs/refs/`** — авторитетные факты (одна правда, без дублирования).
   Системный уровень: `TOPOLOGY` (структура репозиториев), `COMMUNICATION`
   (общение через брокер, event envelope, пин контрактов), `VERIFICATION`
-  (verification gate, edge-модель). Per-service: `STACKS` / `LAYOUT` /
-  `DEPLOYMENT` / `SPEC`.
+  (verification gate, edge-модель). Per-service: `STACKS` / `LAYOUT` / `MODULE`
+  (внутренняя архитектура модуля) / `DEPLOYMENT` / `SPEC`.
 - **`skeletons/service/`** — стартовый набор сервис-репо. Копируется → новый репо.
 - **`skeletons/hub/`** — стартовый набор хаб-репо (`COMPOSITION`, `CONVENTIONS`,
   системный `docker-compose.yml`, `adr/`). Копируется → хаб-репо.

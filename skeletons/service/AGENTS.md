@@ -69,6 +69,8 @@ gitGraph
 - Войти в проект — `<methodology-repo>/docs/guide/00-bootstrap.md`.
 - Описать архитектуру — `<methodology-repo>/docs/guide/10-architecture.md`.
 - Добавить модуль / спеку — `<methodology-repo>/docs/guide/20-define-module.md`.
+- Внутренняя архитектура модуля (usecases/ports/domain/adapters) —
+  `<methodology-repo>/docs/refs/MODULE.md`.
 - Взять задачу, реализовать — `<methodology-repo>/docs/guide/30-implement-task.md`.
 - Проверить перед коммитом — `<methodology-repo>/docs/guide/40-verify.md`;
   теория — `<methodology-repo>/docs/refs/VERIFICATION.md`.
@@ -97,6 +99,9 @@ gitGraph
 - Прямую service-to-service связность в обход брокера
   (`<methodology-repo>/docs/refs/COMMUNICATION.md`).
 - Создавать ADR вне отведённого места (`guide/60`).
+- Отклоняться от usecase-структуры модуля
+  (`<methodology-repo>/docs/refs/MODULE.md`) — отклонение через ADR (`guide/60`),
+  не тихим отступлением.
 - Добавлять зависимости (включая образы в compose) без обоснования.
 - Выдавать stub за реализацию — честно помечать placeholder/TODO.
 - Трогать lock-файлы, `.env`, артефакты сборки без одобрения.

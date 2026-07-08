@@ -17,6 +17,7 @@
 | Войти в проект, поднять сервис с нуля | `docs/guide/00-bootstrap.md` |
 | Описать архитектуру (роль, модули, брокер, топики, граница) | `docs/guide/10-architecture.md` |
 | Добавить модуль / написать спеку | `docs/guide/20-define-module.md` |
+| Спроектировать модуль изнутри (usecases/ports/domain/adapters) | `docs/guide/20-define-module.md` + `docs/refs/MODULE.md` |
 | Взять задачу из бэклога и реализовать (рабочий цикл) | `docs/guide/30-implement-task.md` |
 | Проверить перед коммитом (verification gate) | `docs/guide/40-verify.md` |
 | Запустить локально (брокер + сервис) | `docs/guide/50-deploy.md` |
@@ -38,6 +39,7 @@
 |---|---|
 | Toolchain, layout, команды стека (Python/Go/Rust/TS) | `docs/refs/STACKS.md` |
 | Раскладка каталогов сервиса (workspace модулей) | `docs/refs/LAYOUT.md` |
+| Внутренняя архитектура модуля (usecases/ports/domain/adapters) | `docs/refs/MODULE.md` |
 | Структура compose, Dockerfile, env | `docs/refs/DEPLOYMENT.md` |
 | Канон структуры спеки (7 секций) | `docs/refs/SPEC.md` |
 

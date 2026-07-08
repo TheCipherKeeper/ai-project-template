@@ -9,7 +9,8 @@
 > `skeletons/service/`; стартовые файлы — в `skeletons/service/` этого репо).
 > Референс (факт «как должно лежать»). Процедура добавления модуля —
 > `docs/guide/20-define-module.md`; канон спеки — `docs/refs/SPEC.md`;
-> топология репозиториев — `docs/refs/TOPOLOGY.md`.
+> **внутренняя архитектура модуля (usecases/ports/domain/adapters) —
+> `docs/refs/MODULE.md`**; топология репозиториев — `docs/refs/TOPOLOGY.md`.
 
 ```
 <service>/                 # инстанцированный сервис-репо (из skeletons/service/)
