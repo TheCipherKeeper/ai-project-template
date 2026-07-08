@@ -1,0 +1,18 @@
+# .gitignore интерфейса. Артефакты сборки и кэши — не коммитить.
+
+# Окружение
+.env
+
+# Node / TypeScript / Vite
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

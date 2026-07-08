@@ -77,3 +77,33 @@
   compose, ADR) — **в хабе**, не в этом репо (`docs/refs/TOPOLOGY.md`,
   `docs/refs/COMMUNICATION.md`).
 - ADR — в хабе или в `docs/adr/` (standalone) — см. `docs/guide/60-adr.md`.
+
+## Interface layout
+
+Раскладка **interface-репо** (React/TS; инстанцируется из `skeletons/interface/`,
+отдельный тип репо — не сервис). Внутренняя фронтенд-архитектура (компоненты/
+стейт) — на усмотрение (React-конвенции); `MODULE.md`/`SPEC.md` **не
+применяются** (это бэкенд-канон).
+
+```
+<interface>/              # инстанцированный interface-репо
+  AGENTS.md                точка входа: правила + указатель на методологию
+  README.md
+  .env.example             VITE_API_* (URL presentation-эндпоинтов сервисов)
+  .gitignore
+  docs/
+    ARCHITECTURE.md        манифест потребления: сервисы/эндпоинты, страницы/роуты
+    adr/                   ADR интерфейса (если нет хаба; иначе — в хабе)
+  src/                     React: main.tsx, pages/, components/, hooks/, stores/
+  public/
+  package.json
+  tsconfig.json
+  vite.config.ts
+  pnpm-lock.yaml
+  dist/                    # артефакт сборки (gitignored)
+```
+
+- **`docs/ARCHITECTURE.md`** — обязательный: таблица потребляемых эндпоинтов
+  (`сервис | эндпоинт | версия | назначение`) + страницы/роуты. Это то, что
+  сверяет гейт-agent #15 (`docs/refs/VERIFICATION.md`) с `ARCHITECTURE` сервисов.
+- Брокера, `Dockerfile`-сервиса, `BACKLOG/specs` здесь **нет** — это не сервис.

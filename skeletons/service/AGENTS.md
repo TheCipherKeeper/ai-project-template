@@ -96,8 +96,11 @@ gitGraph
 - Смешивать стеки (один сервис — один язык).
 - Вводить системный multi-service compose или кросс-сервисные контракты в этом
   репо — это зона хаба (`<methodology-repo>/docs/refs/TOPOLOGY.md`).
-- Прямую service-to-service связность в обход брокера
-  (`<methodology-repo>/docs/refs/COMMUNICATION.md`).
+- Прямую **service-to-service** связность в обход брокера
+  (`<methodology-repo>/docs/refs/COMMUNICATION.md`). **Presentation-эндпоинты
+  (HTTP/WS) для интерфейсов — разрешены** и документируются в
+  `docs/ARCHITECTURE.md` → *Доверительная граница* (интерфейс — клиент на
+  границе, не peer-сервис).
 - Создавать ADR вне отведённого места (`guide/60`).
 - Отклоняться от usecase-структуры модуля
   (`<methodology-repo>/docs/refs/MODULE.md`) — отклонение через ADR (`guide/60`),
