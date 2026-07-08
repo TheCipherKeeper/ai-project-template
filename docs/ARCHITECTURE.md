@@ -1,7 +1,8 @@
 # Архитектура
 
-> Скелет одного микросервиса. Стек — `docs/STACKS.md`, раскладка workspace'а —
-> `docs/LAYOUT.md`, деплой — `docs/DEPLOYMENT.md`. Заполни секции под свой
+> Скелет одного микросервиса. Стек — `docs/refs/STACKS.md`, раскладка workspace'а —
+> `docs/refs/LAYOUT.md`, деплой — `docs/guide/50-deploy.md` + `docs/refs/DEPLOYMENT.md`.
+> Процедура заполнения — `docs/guide/10-architecture.md`. Заполни секции под свой
 > сервис. Структура секций читается и людьми, и агентами.
 >
 > Состав программы (несколько сервисов, системная топология) — в хабе
@@ -50,7 +51,8 @@ graph LR
 - **Брокер:** <Kafka | Redpanda | NATS>
 - **Адрес (local dev):** из `docker-compose.yml`, сервис `broker`.
 - **Контракты хаба:** `CONVENTIONS@v<N>` — пин версии, по которой гейт
-  проверяет сервис (см. `docs/VERIFICATION.md`). Бамп пина — отдельным PR.
+  проверяет сервис (см. `docs/refs/VERIFICATION.md`, процедура — `docs/guide/40-verify.md`).
+  Бамп пина — отдельным PR.
 
 Топики сервиса:
 
@@ -83,10 +85,12 @@ graph LR
 
 ## Деплой
 
-- Сервис — контейнер со своим `Dockerfile` (детали — `docs/DEPLOYMENT.md`).
+- Сервис — контейнер со своим `Dockerfile` (детали — `docs/refs/DEPLOYMENT.md`;
+  запуск локально — `docs/guide/50-deploy.md`).
 - Локальная разработка — `docker-compose.yml` (брокер + этот сервис).
 - Системный compose (все сервисы вместе) — в хабе, не здесь.
-- Соответствие хабу (на пиннённой версии контрактов) проверяется verification-гейтом — см. `docs/VERIFICATION.md`.
+- Соответствие хабу (на пиннённой версии контрактов) проверяется verification-гейтом —
+  см. `docs/refs/VERIFICATION.md` (процедура — `docs/guide/40-verify.md`).
 
 ## Ссылки
 
