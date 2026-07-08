@@ -126,3 +126,48 @@ pnpm build
 - Lock-файлы коммитятся (`uv.lock`, `go.sum`, `Cargo.lock`, `pnpm-lock.yaml`),
   но не правятся руками; артефакты/кэши — в `.gitignore`.
 - Зависимости добавляются с обоснованием в коммите/спеке.
+
+## TypeScript (frontend / interface)
+
+Интерфейс-репо — всегда React/TS (это не «один из 4 бэкенд-стеков», а отдельный
+тип репо; выбора нет). Стек фиксирован ниже.
+
+- **Runtime:** Node 20+ (сборка/тесты).
+- **Менеджер:** `pnpm`.
+- **Framework:** React + Vite.
+- **Layout:** `src/` (components/pages/hooks/stores), `public/`,
+  `package.json`, `tsconfig.json`, `vite.config.ts`. Раскладка —
+  `docs/refs/LAYOUT.md` → *Interface layout*.
+- **Линт:** ESLint; типы — `tsc --noEmit`.
+- **Тесты:** vitest.
+- **Сборка:** `vite build` → `dist/` (статика, раздаётся nginx/CDN;
+  деплой — `docs/refs/DEPLOYMENT.md` → *interface*).
+
+```
+package.json
+pnpm-lock.yaml
+tsconfig.json
+vite.config.ts
+src/
+  main.tsx
+  pages/
+  components/
+  hooks/
+  stores/
+public/
+dist/              # артефакт сборки (gitignored)
+```
+
+Команды:
+
+```
+pnpm lint
+tsc --noEmit
+pnpm test
+pnpm build
+```
+
+> Внутренняя фронтенд-архитектура (компоненты/стейт) — на усмотрение
+> (React-конвенции); `MODULE.md`/`SPEC.md` к интерфейсу **не применяются**
+> (это бэкенд-канон). Что интерфейс обязан зафиксировать — манифест
+> потребляемых эндпоинтов в `docs/ARCHITECTURE.md` (проверяет гейт-agent #15).

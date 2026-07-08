@@ -55,7 +55,7 @@ gitGraph
 - **Идентичность корня:** в корне нет сервис-артефактов
   (`ARCHITECTURE.md`/`BACKLOG.md`/`specs/`/`docker-compose.yml`/`.env*`) — они в
   `skeletons/service/`.
-- **Скелеты самодостаточны:** `skeletons/service/` и `skeletons/hub/` можно
+- **Скелеты самодостаточны:** `skeletons/{service,hub,interface}/` можно
   скопировать в новый репо и сразу работать; указатели `<methodology-repo>`
   осмысленны.
 - **Self-containment guide:** фаза `guide/N-*.md` читается одна и выполнима в
@@ -74,8 +74,8 @@ gitGraph
 - Редактировать `docs/guide/` (процедуры), `docs/refs/` (факты),
   `docs/INDEX.md` (роутер), корневые `README`/`AGENTS` — с самодостаточностью
   фаз и без дублирования.
-- Редактировать `skeletons/service/` и `skeletons/hub/` — синхронизировать со
-  актуальной методологией.
+- Редактировать `skeletons/service/`, `skeletons/hub/` и `skeletons/interface/`
+  — синхронизировать со актуальной методологией.
 - Создавать feature-ветки, PR в `main`, теги `vX.Y.Z`.
 - Заводить ADR в `skeletons/{service,hub}/docs/adr/`.
 
@@ -85,7 +85,8 @@ gitGraph
 - Дублировать факты (один факт — один авторитет в `refs/`) или правила
   (service-rules — только в `skeletons/service/AGENTS.md`).
 - Отклоняться от usecase-структуры модуля (`docs/refs/MODULE.md`) — отклонение
-  через ADR (`docs/guide/60-adr.md`), не тихим отступлением.
+  через ADR (`docs/guide/60-adr.md`), не тихим отступлением. (`MODULE.md`/`SPEC.md`
+  применяются только к **сервису**; интерфейсу — нет.)
 - Класть в корень сервис-артефакты (`ARCHITECTURE.md`, `BACKLOG.md`, `specs/`,
   `docker-compose.yml`, `.env*`, `Dockerfile`) — их место `skeletons/service/`.
 - Хранить в `skeletons/` код приложения или lock-файлы — только стартовые
