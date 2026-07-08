@@ -1,13 +1,17 @@
-# Раскладка каталогов
+# Раскладка каталогов (референс)
 
 Один репо = один микросервис. Внутри сервиса — **workspace из модулей**
 («монорепо в рамках сервиса»): Rust `crates/`, Go — несколько пакетов под
 `internal/`/`pkg/`, Python — подпакеты под `src/`, TypeScript — модули под
 `src/`. Каждый модуль — отдельная спека в `docs/specs/<module>.md`.
 
+> Это референс (факт «как должно лежать»). Процедура добавления модуля —
+> пошагово в `docs/guide/20-define-module.md`. Канон структуры спеки —
+> `docs/refs/SPEC.md`.
+
 ```
 <service>/
-  AGENTS.md                 правила работы
+  AGENTS.md                 точка входа агента: правила + указатель на INDEX
   README.md
   docker-compose.yml        локальная разработка: брокер + этот сервис
   .env.example              переменные окружения (копируется в .env)
@@ -15,12 +19,14 @@
   .gitignore
   LICENSE  LICENSE-DOCS
   docs/
-    INDEX.md                карта документации
-    ARCHITECTURE.md         модули, брокер, потоки, граница доверия
-    BACKLOG.md              очередь задач
-    STACKS.md               toolchain/layout/команды по стекам
-    LAYOUT.md               этот файл
-    DEPLOYMENT.md           Dockerfile + локальный compose + ссылка на хаб-деплой
+    INDEX.md                РОУТЕР: «ситуация → читай guide/N или refs/Y»
+    ARCHITECTURE.md         рабочий артефакт: модули, брокер, потоки, граница
+    BACKLOG.md              рабочий артефакт: очередь задач
+    guide/                  фазы-плейбуки (самодостаточные)
+      00-bootstrap.md  10-architecture.md  20-define-module.md
+      30-implement-task.md  40-verify.md  50-deploy.md  60-adr.md
+    refs/                   авторитетные факты (одна правда)
+      STACKS.md  LAYOUT.md(этот файл)  DEPLOYMENT.md  VERIFICATION.md  SPEC.md
     specs/
       <module>.md           контракт модуля (по одному на модуль)
       EXAMPLE.md            # пример — удали
@@ -36,8 +42,7 @@
 ## Модули и спеки
 
 Каждый модуль workspace'а = отдельный спек `docs/specs/<module>.md` по
-канонической структуре (см. `docs/INDEX.md` → *Как работать со спеками*).
-Модуль — это:
+канонической структуре (см. `docs/refs/SPEC.md`). Модуль — это:
 
 - Python: пакет/подпакет под `src/<service>/`.
 - Go: пакет под `internal/` или `pkg/`.
@@ -47,19 +52,10 @@
 ## Где живут общие вещи
 
 - Контракты модулей — `docs/specs/<module>.md`.
-- Состав сервиса, модули, топики, потоки — `docs/ARCHITECTURE.md`.
-- Деплой (Dockerfile, локальный compose) — `docs/DEPLOYMENT.md`.
+- Состав сервиса, модули, топики, потоки — `docs/ARCHITECTURE.md` (рабочий артефакт).
+- Деплой (Dockerfile, структура compose, env) — `docs/refs/DEPLOYMENT.md`;
+  запуск локально — `docs/guide/50-deploy.md`.
 - Общее внутри сервиса между модулями — `shared/` (если нужно).
 - Кросс-сервисные контракты (event envelope, состав программы, системный
   compose, ADR) — **в хабе**, не в этом репо.
-- ADR — в хабе (cybercity) или в `docs/adr/` (standalone) — см. `AGENTS.md` → *ADR*.
-
-## Новый модуль
-
-Чек-лист добавления модуля в workspace:
-
-1. Каталог модуля по layout выбранного стека (команды — `docs/STACKS.md`).
-2. Запись в манифесте/конфиге workspace'а, если требуется (Cargo workspace, tsconfig paths, …).
-3. Спека: `docs/specs/<module>.md`.
-4. Строка в таблице модулей `docs/ARCHITECTURE.md`.
-5. Если модуль публикует/читает топики — отметить в разделе «Брокер» `ARCHITECTURE.md`.
+- ADR — в хабе (cybercity) или в `docs/adr/` (standalone) — см. `docs/guide/60-adr.md`.

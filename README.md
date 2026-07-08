@@ -18,86 +18,84 @@
 > Этот шаблон описывает **один сервис**, не всю систему. Сколько сервисов —
 > столько инстанциаций шаблона, по репо на каждый.
 
-Содержит методологию, а не код: иерархию документов, модель ветвления,
-рабочий цикл, каноническую структуру спеков, ADR, раскладку workspace'а и
-модель деплоя. Клонируй, выбери стек — и работай по одним правилам с людьми и агентами.
+Методология — **пошаговая и модульная**: набор самодостаточных фаз-плейбуков
+(`docs/guide/`), каждую можно взять одну и выполнить, не читая остальные.
+Факты вынесены в тонкие референсы (`docs/refs/`), роутер — `docs/INDEX.md`.
+Клонируй, выбери стек — и работай по одним правилам с людьми и агентами.
 
 ## Что внутри
 
 ```
-AGENTS.md               правила работы (для людей и агентов)
+AGENTS.md               точка входа агента: правила + указатель на INDEX
 README.md
 docker-compose.yml      локальная разработка: брокер + этот сервис
-.env.example            переменные окружения
-Dockerfile              образ этого сервиса
+.env.example             переменные окружения
+Dockerfile               образ этого сервиса
 docs/
-  INDEX.md              карта документации, точка входа
-  ARCHITECTURE.md       архитектура сервиса: модули, брокер, потоки, граница
-  BACKLOG.md            очередь задач
-  STACKS.md             toolchain/layout/команды по стекам
-  LAYOUT.md             раскладка каталогов репозитория сервиса
-  DEPLOYMENT.md         Dockerfile + локальный compose + ссылка на хаб-деплой
-  VERIFICATION.md       verification gate: соответствие канону на каждый коммит
+  INDEX.md              РОУТЕР: «ситуация → читай guide/N или refs/Y»
+  guide/                фазы-плейбуки (самодостаточные):
+    00-bootstrap.md          вход в проект
+    10-architecture.md       описать архитектуру
+    20-define-module.md      добавить модуль / спеку
+    30-implement-task.md     рабочий цикл
+    40-verify.md             проверка перед коммитом
+    50-deploy.md             запуск локально
+    60-adr.md                записать решение
+  refs/                 авторитетные факты (одна правда):
+    STACKS.md  LAYOUT.md  DEPLOYMENT.md  VERIFICATION.md  SPEC.md
+  ARCHITECTURE.md       рабочий артефакт: модули, брокер, потоки, граница
+  BACKLOG.md            рабочий артефакт: очередь задач
   specs/<module>.md     контракты модулей (по одному на модуль)
-  adr/                  архитектурные решения (или в хабе — см. AGENTS.md)
+  adr/                  архитектурные решения (или в хабе — см. guide/60)
 <workspace>/            модули сервиса — по layout выбранного стека
 <manifest>              pyproject.toml / go.mod / Cargo.toml / package.json
 ```
 
 ## Быстрый старт
 
-1. Создай репо из шаблона (кнопка *Use this template* на GitHub) или склонируй
-   и оторви историю: `git checkout --orphan main && git add -A && git commit -m "init"`.
-2. **Выбери стек** (один на сервис): Python / Go / Rust / TypeScript.
-3. В `AGENTS.md` закрепи строки команд выбранного стека в таблице *Команды
-   проверки по стеку*. В `docs/STACKS.md` удали секции невыбранных стеков.
-4. Заведи модули сервиса (workspace: `crates/` / пакеты / `src/`-модули) —
-   по одному спеку на модуль в `docs/specs/`. Удали `docs/specs/EXAMPLE.md`.
-5. Опиши топики сервиса (publish/consume) в `docs/ARCHITECTURE.md` → *Брокер*.
-   Формат event envelope — в хабе `CONVENTIONS.md`.
-6. Заполни `docs/ARCHITECTURE.md` и `docs/BACKLOG.md` под свой сервис.
+Подробно — `docs/guide/00-bootstrap.md`. Кратко:
+
+1. Создай репо из шаблона (кнопка *Use this template*) или склонируй и оторви
+   историю: `git checkout --orphan main && git add -A && git commit -m "init"`.
+2. **Выбери стек** (один на сервис) — закрепи строку команд в `AGENTS.md`,
+   удали лишние секции в `docs/refs/STACKS.md`.
+3. Заведи модули (`docs/guide/20-define-module.md`) и опиши архитектуру
+   (`docs/guide/10-architecture.md`).
 
 ## Документация
 
 | Файл | Что |
 |---|---|
-| `AGENTS.md` | Правила работы: ветвление, коммиты, что можно/нельзя, команды по стекам |
-| `docs/INDEX.md` | Карта документации |
-| `docs/ARCHITECTURE.md` | Архитектура сервиса: модули, брокер, потоки, граница доверия |
-| `docs/BACKLOG.md` | Очередь задач |
-| `docs/STACKS.md` | Toolchain, layout и команды для Python/Go/Rust/TS |
-| `docs/LAYOUT.md` | Раскладка каталогов репозитория сервиса |
-| `docs/DEPLOYMENT.md` | Dockerfile, локальный compose, ссылка на хаб-деплой |
-| `docs/VERIFICATION.md` | Verification gate: проверка соответствия канону на каждый коммит |
+| `docs/INDEX.md` | Роутер: «ситуация → читай» |
+| `AGENTS.md` | Правила: ветвление, что можно/нельзя, коммиты, язык, команды стека |
+| `docs/guide/` | Фазы-плейбуки (00–60): процедуры по шагам, каждая самодостаточна |
+| `docs/refs/` | Референсы: STACKS/LAYOUT/DEPLOYMENT/VERIFICATION/SPEC (факты) |
+| `docs/ARCHITECTURE.md` | Архитектура сервиса (рабочий артефакт) |
+| `docs/BACKLOG.md` | Очередь задач (рабочий артефакт) |
 | `docs/specs/` | Контракты модулей (по одному файлу на модуль) |
-| `docs/adr/` | Архитектурные решения (ADR) |
+| `docs/adr/` | ADR (если нет хаба; иначе — в хабе) |
 
 ## Разработка
 
+Полный рабочий цикл — `docs/guide/30-implement-task.md`. Кратко:
+
 ```bash
-git checkout dev
-git pull
-git checkout -b feat/<задача>
-
-# внести изменения
-lint      # команды выбранного стека — AGENTS.md / docs/STACKS.md
-test
-build
-
+git checkout dev && git pull && git checkout -b feat/<задача>
+# внести изменения; проверка перед коммитом — docs/guide/40-verify.md
 git commit -m "feat(<module>): ..."
 git push
 # открыть PR в dev
 ```
 
-Локальный запуск (брокер + этот сервис):
+Локальный запуск (брокер + этот сервис) — `docs/guide/50-deploy.md`:
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-Полный цикл — в `AGENTS.md`. Задачи — в `docs/BACKLOG.md`. Деплой — в
-`docs/DEPLOYMENT.md`. Системный compose и кросс-сервисные контракты — в хабе.
+Задачи — в `docs/BACKLOG.md`. Деплой — в `docs/guide/50-deploy.md` +
+`docs/refs/DEPLOYMENT.md`. Системный compose и кросс-сервисные контракты — в хабе.
 
 ## Лицензия
 
