@@ -103,3 +103,37 @@
   (`сервис | эндпоинт | версия | назначение`) + страницы/роуты. Это то, что
   сверяет гейт-agent #15 (`docs/refs/VERIFICATION.md`) с `ARCHITECTURE` сервисов.
 - Брокера, `Dockerfile`-сервиса, `BACKLOG/specs` здесь **нет** — это не сервис.
+
+## Stub layout
+
+Раскладка **stub-репо** (passive target; инстанцируется из `skeletons/stub/`,
+отдельный тип репо — не сервис, не интерфейс). Stub — контейнер с реальными
+сетевыми поверхностями, параметризуемый дескриптором из manage, наблюдаемый
+collector'ом out-of-band. Внутренняя структура (как реализован сокет/баннер) —
+на усмотрение под выбранный стек; `MODULE.md`/`SPEC.md` **не применяются**
+(stub параметризуется дескриптором, не usecase-швами).
+
+```
+<stub>/                  # инстанцированный stub-репо (из skeletons/stub/)
+  AGENTS.md               точка входа: stub-правила + указатель на методологию
+  README.md
+  Dockerfile              образ stub-цели (контейнер, не root)
+  docker-compose.yml      локально: этот stub-контейнер (БЕЗ брокера)
+  .env.example            поверхности/баннер/id (без BROKER_ADDR)
+  .gitignore
+  docs/
+    ARCHITECTURE.md       роль passive target: поверхности, доверительная граница, деплой
+  <workspace>/            реализация поверхностей — на усмотрение под стек
+                          (Rust crates/, Go internal/, Python src/, TS src/)
+  <manifest>              Cargo.toml / go.mod / pyproject.toml / package.json
+  <lock>                  Cargo.lock / go.sum / uv.lock / pnpm-lock.yaml
+```
+
+- **`docs/ARCHITECTURE.md`** — обязательный: таблица поверхностей
+  (`поверхность | протокол | порт | назначение`), параметризация дескриптором,
+  доверительная граница, деплой. **Без** секций Брокер/топики/presentation.
+- Брокера, `BACKLOG/specs`, presentation-эндпоинтов здесь **нет** — stub не
+  участник общения и не сервис. `CONVENTIONS@vN` к stub N/A.
+- Скелет — `skeletons/stub/`; модель stub'а в системе —
+  `docs/refs/COMMUNICATION.md` → *Stub-таргет*; применимость инвариантов —
+  `docs/refs/VERIFICATION.md` → *Применимость инвариантов по типу репо*.

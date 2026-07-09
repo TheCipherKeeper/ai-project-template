@@ -24,15 +24,16 @@
 | Зафиксировать архитектурное решение (ADR) | `docs/guide/60-adr.md` |
 | Выпустить стабильную версию (тег) | `docs/guide/70-release.md` |
 | Создать интерфейс / описать визуализации (React/TS, потребление эндпоинтов) | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *Клиентский край* |
+| Создать stub-таргет (passive target, контейнер-цель, без брокера/presentation) | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Stub-таргет* |
 | Узнать правила работы над методологией (ветвление, можно/нельзя, docs-verify, коммиты, язык) | `AGENTS.md` |
 
 ## Системный уровень → refs/
 
 | Факт | Референс |
 |---|---|
-| Структура репозиториев: хаб + N сервисов; что где живёт; ADR home; edge-модель | `docs/refs/TOPOLOGY.md` |
-| Общение микросервисов: брокер, event envelope, пин контрактов, без прямой связности | `docs/refs/COMMUNICATION.md` |
-| Verification gate: рёбра, версионирование, conformance/behavioral, полный чеклист | `docs/refs/VERIFICATION.md` |
+| Структура репозиториев: хаб + N сервисов + M интерфейсов + K stub-таргетов; что где живёт; ADR home; edge-модель | `docs/refs/TOPOLOGY.md` |
+| Общение микросервисов: брокер, event envelope, пин контрактов, без прямой связности; stub-таргет out-of-band | `docs/refs/COMMUNICATION.md` |
+| Verification gate: рёбра, версионирование, conformance/behavioral, полный чеклист, применимость по типу репо | `docs/refs/VERIFICATION.md` |
 
 ## Per-service факты → refs/
 
@@ -51,9 +52,11 @@
 | Создать хаб-репо (системные контракты, состав, compose) | `skeletons/hub/` |
 | Создать сервис-репо (AGENTS, README, compose, env, Dockerfile, docs/) | `skeletons/service/` |
 | Создать interface-репо (React/TS, визуализации, потребление эндпоинтов) | `skeletons/interface/` |
+| Создать stub-репо (passive target, контейнер-цель, без брокера/presentation) | `skeletons/stub/` |
 
-Скелеты копируются в новый репо целиком; хаб/сервисы/интерфейсы **не несут**
-guide/refs, а ссылаются на этот репо методологии (`<methodology-repo>/docs/...`).
+Скелеты копируются в новый репо целиком; хаб/сервисы/интерфейсы/stub-таргеты **не
+несут** guide/refs, а ссылаются на этот репо методологии
+(`<methodology-repo>/docs/...`).
 
 ## Рабочие артефакты (в сервис-репо, не здесь)
 

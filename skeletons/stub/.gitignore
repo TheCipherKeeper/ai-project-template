@@ -1,0 +1,34 @@
+# .gitignore stub-таргета. Артефакты сборки и кэши — не коммитить.
+
+# Окружение
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Go
+bin/
+*.exe
+*.test
+
+# Rust
+target/
+
+# TypeScript / Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+coverage/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
