@@ -17,21 +17,24 @@
 ## Сервисы программы
 
 <!-- Заполни по мере добавления. Каждый сервис — отдельный репо (инстанциация
-     из <methodology-repo>/skeletons/service/). -->
+     из <methodology-repo>/skeletons/service/). Один из сервисов — **gateway**
+     (единственный browser-facing surface, presentation для интерфейсов); ровно
+     один, если есть ≥1 интерфейс. -->
 
 | Сервис | Репо | Роль | Пин контракта |
 |---|---|---|---|
+| `<gateway>` | <repo-url> | **gateway** (browser-facing) | `CONVENTIONS@v1` |
 | `<service-a>` | <repo-url> | … | `CONVENTIONS@v1` |
 
 ## Интерфейсы программы
 
 <!-- Каждый интерфейс — отдельный репо (инстанциация из
      <methodology-repo>/skeletons/interface/). Интерфейс — клиент на границе,
-     зовёт presentation-эндпоинты сервисов. -->
+     зовёт presentation-эндпоинты **gateway-сервиса**. -->
 
 | Интерфейс | Репо | Визуализирует | Потребляет |
 |---|---|---|---|
-| `<interface-a>` | <repo-url> | … | `<service-a> /v1/...` |
+| `<interface-a>` | <repo-url> | … | `<gateway> /v1/...` |
 
 ## Разработка
 

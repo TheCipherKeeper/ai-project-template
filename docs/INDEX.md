@@ -23,7 +23,8 @@
 | Запустить локально (брокер + сервис) | `docs/guide/50-deploy.md` |
 | Зафиксировать архитектурное решение (ADR) | `docs/guide/60-adr.md` |
 | Выпустить стабильную версию (тег) | `docs/guide/70-release.md` |
-| Создать интерфейс / описать визуализации (React/TS, потребление эндпоинтов) | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *Клиентский край* |
+| Создать интерфейс / описать визуализации (React/TS, потребление эндпоинтов gateway) | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис* / *Клиентский край* |
+| Назначить gateway-сервис (единственный browser-facing surface) | инстанциация из `skeletons/service/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис*; роль фиксируется в `COMPOSITION` хаба |
 | Создать stub-таргет (passive target, контейнер-цель, без брокера/presentation) | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Stub-таргет* |
 | Узнать правила работы над методологией (ветвление, можно/нельзя, docs-verify, коммиты, язык) | `AGENTS.md` |
 
@@ -51,7 +52,8 @@
 |---|---|
 | Создать хаб-репо (системные контракты, состав, compose) | `skeletons/hub/` |
 | Создать сервис-репо (AGENTS, README, compose, env, Dockerfile, docs/) | `skeletons/service/` |
-| Создать interface-репо (React/TS, визуализации, потребление эндпоинтов) | `skeletons/interface/` |
+| Создать interface-репо (React/TS, визуализации, потребление эндпоинтов gateway) | `skeletons/interface/` |
+| Назначить gateway-сервис (browser-facing, из сервисов) | `skeletons/service/` (роль gateway — в `COMPOSITION` хаба) |
 | Создать stub-репо (passive target, контейнер-цель, без брокера/presentation) | `skeletons/stub/` |
 
 Скелеты копируются в новый репо целиком; хаб/сервисы/интерфейсы/stub-таргеты **не
