@@ -59,13 +59,13 @@ gitGraph
 
 | Стек | lint | test | build |
 |---|---|---|---|
-| **Python** | `ruff format --check . && ruff check .` | `pytest` | `uv build` |
+| **Python** | `ruff format --check . && ruff check . && pyright` | `pytest` | `uv build` |
 | **Go** | `gofmt -l . && go vet ./...` | `go test ./...` | `go build -o bin/<service> ./cmd/<service>` |
 | **Rust** | `cargo fmt --check && cargo clippy -- -D warnings` | `cargo test` | `cargo build --release` |
 | **TypeScript** | `pnpm lint && tsc --noEmit` | `pnpm test` | `pnpm build` |
 
-> Go: `gofmt -l .` должен вывести пустоту. Python: опц. `mypy`/`pyright`.
-> TypeScript: runtime — Node (по умолчанию); Deno/Bun — зафиксируй в `STACKS.md`.
+> Go: `gofmt -l .` должен вывести пустоту. Python: типы — `pyright`.
+> TypeScript: runtime — Node 24+ (только он); менеджер — `pnpm` (только он).
 
 ## Указатели на процедуры (в методологии)
 
