@@ -62,7 +62,7 @@ Stub реализуется на одном из бэкенд-стеков (Pyth
 
 | Стек | lint | test | build |
 |---|---|---|---|
-| **Python** | `ruff format --check . && ruff check .` | `pytest` | `uv build` |
+| **Python** | `ruff format --check . && ruff check . && pyright` | `pytest` | `uv build` |
 | **Go** | `gofmt -l . && go vet ./...` | `go test ./...` | `go build -o bin/<stub> ./cmd/<stub>` |
 | **Rust** | `cargo fmt --check && cargo clippy -- -D warnings` | `cargo test` | `cargo build --release` |
 | **TypeScript** | `pnpm lint && tsc --noEmit` | `pnpm test` | `pnpm build` |

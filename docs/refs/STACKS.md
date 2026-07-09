@@ -12,11 +12,12 @@ toolchain, layout и команды для каждого. В `AGENTS.md` — к
 ## Python
 
 - **Runtime:** Python 3.12+.
-- **Менеджер:** `uv` (рекомендуется) или `pip` + `venv`.
+- **Менеджер:** `uv` (только он).
 - **Layout:** `src/<service>/`, `tests/`, `pyproject.toml`.
-- **Линт:** `ruff` (формат + линтер). Опционально `mypy`/`pyright` для типов.
+- **Линт:** `ruff` (формат + линтер).
+- **Типы:** `pyright`.
 - **Тесты:** `pytest`.
-- **Сборка:** wheel через `uv build` / `python -m build`.
+- **Сборка:** wheel через `uv build` (только через `uv`).
 
 ```
 pyproject.toml
@@ -32,6 +33,7 @@ uv.lock
 ```
 ruff format --check .
 ruff check .
+pyright
 pytest
 uv build
 ```
@@ -41,7 +43,7 @@ uv build
 - **Runtime:** Go 1.22+.
 - **Менеджер:** стандартные модули (`go.mod`).
 - **Layout:** `cmd/<service>/main.go`, `internal/`, `pkg/` (если нужно).
-- **Линт:** `gofmt`, `go vet`; опционально `golangci-lint run`.
+- **Линт:** `gofmt`, `go vet` (`golangci-lint run` не нужен).
 - **Тесты:** `go test ./...`.
 - **Сборка:** `go build`.
 
@@ -94,12 +96,12 @@ cargo build --release
 
 ## TypeScript (бэкенд)
 
-- **Runtime:** Node 20+ (по умолчанию). Deno/Bun допустимы — зафиксируй.
-- **Менеджер:** `pnpm` (рекомендуется) или `npm`.
+- **Runtime:** Node 24+ (только он).
+- **Менеджер:** `pnpm` (только он).
 - **Layout:** `src/`, `package.json`, `tsconfig.json`, `vitest`.
-- **Линт:** ESLint или Biome; типы через `tsc --noEmit`.
-- **Тесты:** `vitest` (или `node --test`).
-- **Сборка:** `tsc` или бандлер (esbuild/tsup).
+- **Линт:** ESLint (только он); типы через `tsc --noEmit`.
+- **Тесты:** `vitest` (только он).
+- **Сборка:** `tsc` (только он).
 
 ```
 package.json
@@ -132,7 +134,7 @@ pnpm build
 Интерфейс-репо — всегда React/TS (это не «один из 4 бэкенд-стеков», а отдельный
 тип репо; выбора нет). Стек фиксирован ниже.
 
-- **Runtime:** Node 20+ (сборка/тесты).
+- **Runtime:** Node 24+ (сборка/тесты).
 - **Менеджер:** `pnpm`.
 - **Framework:** React + Vite.
 - **Layout:** `src/` (components/pages/hooks/stores), `public/`,
