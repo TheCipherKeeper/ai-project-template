@@ -55,8 +55,12 @@ gitGraph
   (ARCHITECTURE/BACKLOG/specs) — это в их репо.
 - Вводить прямую **service-to-service** связность в обход брокера в
   `COMPOSITION`/`CONVENTIONS` — общение сервисов только через брокер
-  (`<methodology-repo>/docs/refs/COMMUNICATION.md`). (Интерфейс → сервис по
-  HTTP/WS — разрешено; это клиентский край.)
+  (`<methodology-repo>/docs/refs/COMMUNICATION.md`). (Интерфейс → gateway-сервис
+  по HTTP/WS — разрешено; это клиентский край, не service-to-service.)
+- Держать **browser-facing presentation-эндпоинты** где-либо, кроме
+  **gateway-сервиса** — только он единственный browser-facing surface; прочие
+  сервисы presentation для интерфейсов не держат (клиентский край — через топики,
+  потребляемые gateway). Ровно один gateway, если есть ≥1 интерфейс.
 
 ## Версионирование контрактов (обязательно)
 

@@ -50,7 +50,12 @@
 
 ## Правила
 
-- Общение — **только через брокер**; прямые service-to-service вызовы запрещены.
+- Общение — **только через брокер**; прямые service-to-service вызовы
+  (включая `gateway → сервис`) запрещены. (`Интерфейс → gateway-сервис` по
+  HTTP/WS — разрешено; это клиентский край, не service-to-service.)
+- **browser-facing presentation-эндпоинты** (HTTP/WS для интерфейсов) живут
+  **только** на gateway-сервисе; presentation-API versioning — на gateway (одно
+  место, не per-service). Прочие сервисы presentation для интерфейсов не держат.
 - Не изобретать свой envelope в сервисах — только этот.
 - Backward-compatible изменения (новое опц. поле) — **без bump**: остаться
   `@vN` (старые consumer'ы не ломаются). Breaking — **major bump**:
