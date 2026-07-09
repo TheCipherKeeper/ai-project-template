@@ -70,12 +70,23 @@ volumes:
 - **Локальная разработка:** `pnpm dev` (Vite dev-сервер), **не** `docker
   compose up` с брокером. Брокер интерфейсу не нужен.
 - **Переменные:** `VITE_API_*` (URL потребляемых presentation-эндпоинтов
-  сервисов) — в `.env` / `.env.example`. URL эндпоинтов — источник имён ключей.
+  **gateway-сервиса**) — в `.env` / `.env.example`. URL эндпоинтов — источник имён
+  ключей. Интерфейс потребляет только gateway (один URL/CORS).
 - **Dockerfile** (если есть): мультистадийный — stage сборки (`pnpm build`) →
   тонкий runtime (nginx + `dist/`), не от root.
 - **Проверка перед деплоем:** `pnpm lint && tsc --noEmit && pnpm test &&
   pnpm build`; убедиться, что `dist/` собрался.
 
-> Интерфейс зовёт presentation-эндпоинты сервисов (`docs/refs/COMMUNICATION.md`
-> → *Клиентский край*); какие именно — зафиксированы в `docs/ARCHITECTURE.md`
-> интерфейса.
+> Интерфейс зовёт presentation-эндпоинты **gateway-сервиса**
+> (`docs/refs/COMMUNICATION.md` → *Клиентский край*); какие именно —
+> зафиксированы в `docs/ARCHITECTURE.md` интерфейса и сверяются с `ARCHITECTURE`
+> gateway.
+
+## gateway-сервис (browser-facing surface)
+
+gateway — обычный сервис: деплой **контейнером** со своим `Dockerfile`, локальный
+`docker-compose.yml` = брокер + gateway (как у любого сервиса, см. структуру
+выше). Отличие одно — **только gateway открывает внешний порт** для браузера
+(остальные сервисы внешних портов для интерфейсов не открывают; align с «внешние
+порты открывать осознанно»). Свою читающую модель/проекции и command-топики —
+описывает в `docs/ARCHITECTURE.md` как сервис.

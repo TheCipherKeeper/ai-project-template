@@ -86,10 +86,10 @@
 <interface>/              # инстанцированный interface-репо
   AGENTS.md                точка входа: правила + указатель на методологию
   README.md
-  .env.example             VITE_API_* (URL presentation-эндпоинтов сервисов)
+  .env.example             VITE_API_* (URL presentation-эндпоинтов gateway-сервиса)
   .gitignore
   docs/
-    ARCHITECTURE.md        манифест потребления: сервисы/эндпоинты, страницы/роуты
+    ARCHITECTURE.md        манифест потребления: эндпоинты gateway, страницы/роуты
   src/                     React: main.tsx, pages/, components/, hooks/, stores/
   public/
   package.json
@@ -100,8 +100,10 @@
 ```
 
 - **`docs/ARCHITECTURE.md`** — обязательный: таблица потребляемых эндпоинтов
-  (`сервис | эндпоинт | версия | назначение`) + страницы/роуты. Это то, что
-  сверяет гейт-agent #15 (`docs/refs/VERIFICATION.md`) с `ARCHITECTURE` сервисов.
+  **gateway-сервиса** (`gateway | эндпоинт | версия | назначение`) + страницы/роуты.
+  Это то, что сверяет гейт-agent #15 (`docs/refs/VERIFICATION.md`) с `ARCHITECTURE`
+  **gateway** (единственного browser-facing surface). Интерфейс потребляет только
+  gateway, не прочие сервисы.
 - Брокера, `Dockerfile`-сервиса, `BACKLOG/specs` здесь **нет** — это не сервис.
 
 ## Stub layout
