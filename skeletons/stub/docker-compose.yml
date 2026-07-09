@@ -1,6 +1,7 @@
-# Локальная разработка: этот stub-контейнер-цель (БЕЗ брокера — stub не участник
-# брокера). Процедура — <methodology-repo>/docs/guide/50-deploy.md,
-# структура compose — <methodology-repo>/docs/refs/DEPLOYMENT.md.
+# Локальная разработка при form=container: этот stub-контейнер (БЕЗ брокера — stub
+# не участник брокера). Для прочих форм (cli, …) этот файл удаляется. Процедура —
+# <methodology-repo>/docs/guide/50-deploy.md, структура compose —
+# <methodology-repo>/docs/refs/DEPLOYMENT.md.
 # Системный compose (все сервисы + цели программы) — в хабе, не здесь.
 #
 # Скелет. Замени <...> под свой stub-таргет.
