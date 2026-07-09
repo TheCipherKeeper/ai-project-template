@@ -22,7 +22,7 @@
 | Проверить перед коммитом (verification gate) | `docs/guide/40-verify.md` |
 | Запустить локально (брокер + сервис) | `docs/guide/50-deploy.md` |
 | Зафиксировать архитектурное решение (ADR) | `docs/guide/60-adr.md` |
-| Выпустить стабильную версию (тег) | `docs/guide/70-release.md` |
+| Выпустить версию (тег: pre-release / стабильная) | `docs/guide/70-release.md` |
 | Создать интерфейс / описать визуализации (React/TS, потребление эндпоинтов gateway) | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис* / *Клиентский край* |
 | Назначить gateway-сервис (единственный browser-facing surface) | инстанциация из `skeletons/service/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис*; роль фиксируется в `COMPOSITION` хаба |
 | Создать stub-таргет (standalone-программа; форма — контейнер/CLI/…; без брокера/presentation; out-of-band-наблюдение — режим) | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Stub-таргет* |
