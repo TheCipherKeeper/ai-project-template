@@ -1,5 +1,6 @@
-# Dockerfile stub-таргета. Скелет — замени под выбранный стек.
-# Stub — пассивная цель (контейнер-цель), деплоится контейнером. Брокера НЕТ.
+# Dockerfile stub-таргета — только для form=container. Для прочих форм (cli, …)
+# этот файл удаляется. Скелет — замени под выбранный стек.
+# Stub — standalone-программа (контейнер-цель при form=container). Брокера НЕТ.
 # Сборка из команд `build` стека (см. <methodology-repo>/docs/refs/STACKS.md).
 # Требования: мультистадийная сборка, тонкий runtime-образ, не от root,
 # healthcheck если есть. Детали — <methodology-repo>/docs/refs/DEPLOYMENT.md.
