@@ -40,8 +40,7 @@ gitGraph
 - Редактировать `COMPOSITION.md` (состав программы — добавлять/удалять
   сервисы и интерфейсы; секция «Интерфейсы» — для ребра `хаб → интерфейс`).
 - Редактировать `CONVENTIONS.md` (event envelope, кросс-сервисные конвенции) —
-  с версионированием (`@vN`); bump major — отдельным PR + координированный
-  апдейт сервисов (см. ниже).
+  breaking change отдельным PR + апдейт сервисов под новый контракт.
 - Менять системный `docker-compose.yml` (все сервисы + брокер).
 - Заводить ADR в `adr/` (хаб — единый ADR-дом программы).
 - Создавать feature-ветки, PR в `main`, теги.
@@ -49,8 +48,6 @@ gitGraph
 ## Что нельзя
 
 - Коммитить напрямую в `main`; заводить `dev`/release-ветки.
-- Менять контракт `CONVENTIONS@vN` задним числом (уже выпущенная версия
-  неизменна; новое — `@vN+1`). Иначе сервисы на пине `@vN` ломаются.
 - Хранить здесь код сервисов/интерфейсов или их рабочие артефакты
   (ARCHITECTURE/BACKLOG/specs) — это в их репо.
 - Вводить прямую **service-to-service** связность в обход брокера в
@@ -58,29 +55,20 @@ gitGraph
   (`<methodology-repo>/docs/refs/COMMUNICATION.md`). (Интерфейс → gateway-сервис
   по HTTP/WS — разрешено; это клиентский край, не service-to-service.)
 - Держать **browser-facing presentation-эндпоинты** где-либо, кроме
-  **gateway-сервиса** — только он единственный browser-facing surface; прочие
-  сервисы presentation для интерфейсов не держат (клиентский край — через топики,
-  потребляемые gateway). Ровно один gateway, если есть ≥1 интерфейс.
-
-## Версионирование контрактов (обязательно)
-
-- `CONVENTIONS.md` экспонирует версии: `CONVENTIONS@v1`, `@v2`, …
-- Сервисы пинят версию; гейт проверяет сервис против пина, не HEAD.
-- Breaking change в `CONVENTIONS` → bump major (`@vN+1`) отдельным PR;
-  сервисы мигрируют каждый своим PR (бамп пина + правки). Не атомарно —
-  потому и нужен pin (см. `<methodology-repo>/docs/refs/VERIFICATION.md`).
+  **gateway-сервиса** — только он их держит; ровно один, если есть ≥1 интерфейс
+  (модель — `<methodology-repo>/docs/refs/COMMUNICATION.md` → *gateway-сервис*).
 
 ## Коммиты
 
 Conventional Commits. Scope — `composition`/`conventions`/`deploy`/`docs`.
 
 ```
-feat(conventions): add trace_id to event envelope @v2
+feat(conventions): add trace_id to event envelope
 fix(composition): register new billing service
 docs: link ADR-0007 from COMPOSITION
 ```
 
-Breaking changes контракта — `BREAKING CHANGE:` в теле + bump версии.
+Breaking changes контракта — `BREAKING CHANGE:` в теле.
 
 ## Язык
 

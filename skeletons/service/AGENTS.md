@@ -102,10 +102,9 @@ gitGraph
 - Прямую **service-to-service** связность в обход брокера
   (`<methodology-repo>/docs/refs/COMMUNICATION.md`). **Browser-facing
   presentation-эндпоинты (HTTP/WS) для интерфейсов — только у gateway-сервиса**
-  и документируются в `docs/ARCHITECTURE.md` → *Доверительная граница*
-  (gateway — единственный browser-facing surface; интерфейс — клиент на границе,
-  не peer-сервис). Обычные сервисы presentation для интерфейсов **не** держат —
-  их клиентский край = топики брокера, потребляемые gateway.
+  и документируются в `docs/ARCHITECTURE.md` → *Доверительная граница* (модель —
+  `<methodology-repo>/docs/refs/COMMUNICATION.md` → *gateway-сервис*). Обычные
+  сервисы их **не** держат — клиентский край через топики, потребляемые gateway.
 - Создавать ADR вне хаба (`<hub>/adr/`; процедура — `guide/60`).
 - Отклоняться от usecase-структуры модуля
   (`<methodology-repo>/docs/refs/MODULE.md`) — отклонение через ADR в хабе

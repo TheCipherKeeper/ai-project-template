@@ -11,9 +11,8 @@
 > брокер-клиент и не peer-сервис. Зовёт **только presentation-эндпоинты
 > gateway-сервиса** по HTTP/WS, документированные в `ARCHITECTURE.md`
 > **gateway** → *Доверительная граница* (модель —
-> `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Клиентский край*;
-> gateway — единственный browser-facing surface, прочие сервисы интерфейс не
-> зовёт). Стек — фиксированный React/TS
+> `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Клиентский край*). Стек —
+> фиксированный React/TS
 > (`<methodology-repo>/docs/refs/STACKS.md` → *frontend*).
 >
 > Системный контекст (состав программы, список сервисов/интерфейсов, event
@@ -68,7 +67,7 @@ React + TypeScript (Vite, `pnpm`, ESLint, vitest). Полная конфигур
   *Доверительная граница*; модель клиентского края —
   `<methodology-repo>/docs/refs/COMMUNICATION.md`.
 - Проверить перед коммитом — `<methodology-repo>/docs/guide/40-verify.md`;
-  теория — `<methodology-repo>/docs/refs/VERIFICATION.md` (инвариант #15 —
+  теория — `<methodology-repo>/docs/refs/VERIFICATION.md` (инвариант #14 —
   соответствие заявленных вызовов эндпоинтам **gateway**, agent).
 - Деплой (статика) — `<methodology-repo>/docs/refs/DEPLOYMENT.md` → *Интерфейс*.
 - Записать ADR — `<methodology-repo>/docs/guide/60-adr.md`.
@@ -87,7 +86,7 @@ React + TypeScript (Vite, `pnpm`, ESLint, vitest). Полная конфигур
 - Коммитить напрямую в `main`; заводить `dev`/release-ветки.
 - Отклоняться от манифеста потребления в `docs/ARCHITECTURE.md` — заявленные
   вызовы должны соответствовать реальным presentation-эндпоинтам **gateway-сервиса**
-  (гейт-agent #15; отклонение через ADR, не тихим отступлением).
+  (гейт-agent #14; отклонение через ADR, не тихим отступлением).
 - Быть брокер-клиентом или peer-сервисом — интерфейс зовёт только
   presentation-эндпоинты **gateway**; прямо в прочие сервисы не ходит; прямая
   связность с чужой БД/брокером запрещена.

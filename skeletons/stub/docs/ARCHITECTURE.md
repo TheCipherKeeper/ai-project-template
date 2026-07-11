@@ -2,14 +2,12 @@
 
 > Скелет одного stub-таргета (standalone-программа). Stub — **не участник брокера**,
 > не peer-сервис, не имеет presentation-эндпоинтов для интерфейсов. Форма — параметр
-> дескриптора из control-plane (manage): контейнер / CLI / … (`form`).
-> Out-of-band-наблюдение collector'ом — **режим**, не свойство: включается, когда
-> есть наблюдаемая поверхность (сеть/хост/процесс) (модель —
-> `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Stub*). Деплой — по форме
-> (контейнер — `Dockerfile`; CLI — артефакт/сборка;
-> `<methodology-repo>/docs/refs/DEPLOYMENT.md`). `MODULE.md`/`SPEC.md` сюда **не
-> применяются** (бэкенд-канон usecase-швов сервиса; stub параметризуется
-> дескриптором). Заполни секции под свой stub-таргет.
+> из control-plane: контейнер / CLI / … (`form`); деплой — по форме (контейнер —
+> `Dockerfile`; CLI — артефакт/сборка; `<methodology-repo>/docs/refs/DEPLOYMENT.md`).
+> При наличии наблюдаемой поверхности collector наблюдает её out-of-band (модель —
+> `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Stub-таргет*).
+> `MODULE.md`/`SPEC.md` сюда **не применяются** (бэкенд-канон usecase-швов сервиса;
+> stub параметризуется, не юзкейсами). Заполни секции под свой stub-таргет.
 
 ## Что это
 
@@ -34,8 +32,8 @@
 
 ## Поверхности (если наблюдаются)
 
-<!-- Только когда включён out-of-band-режим. Не presentation-эндпоинты. Для
-     network — raw TCP/SSH/HTTP-баннер; для host/process — артефакты/процесс. -->
+<!-- Только когда есть наблюдаемая поверхность (collector наблюдает её out-of-band).
+     Не presentation-эндпоинты. -->
 
 | Поверхность | Протокол | Порт | Назначение |
 |---|---|---|---|
@@ -43,10 +41,8 @@
 
 ## Параметризация
 
-<!-- Чем параметризуется stub из дескриптора (manage): form (container|cli|…),
-     runtime_kind, и при наблюдении — surface (network|host|process|none), ports,
-     software, banner. Ссылка на модель form/runtime_kind в хабе ADR (напр.
-     ADR-0004). -->
+<!-- Чем параметризуется stub из control-plane: form (container|cli|…) и — при
+     наблюдении — параметры поверхности (протокол/порты/баннер и т.п.). -->
 
 ## Доверительная граница
 
@@ -66,6 +62,6 @@
 ## Ссылки
 
 - Хаб `COMPOSITION.md` — состав программы (сервисы + интерфейсы + stub-таргеты).
-- Хаб `adr/` — архитектурные решения (в т.ч. модель `runtime_kind`).
+- Хаб `adr/` — архитектурные решения программы.
 - `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Stub* — место stub'а в
   модели общения.

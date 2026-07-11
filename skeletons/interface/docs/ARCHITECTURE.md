@@ -2,8 +2,7 @@
 
 > Скелет одного интерфейса (React/TS). Интерфейс — клиент на доверительной
 > границе, зовёт presentation-эндпоинты **gateway-сервиса** по HTTP/WS (модель —
-> `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Клиентский край*; gateway —
-> единственный browser-facing surface, прочие сервисы интерфейс не зовёт).
+> `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Клиентский край*).
 > Стек — `<methodology-repo>/docs/refs/STACKS.md` → *frontend*; деплой —
 > `<methodology-repo>/docs/refs/DEPLOYMENT.md` → *Интерфейс*. Заполни секции
 > под свой интерфейс. `MODULE.md`/`SPEC.md` сюда **не применяются** (бэкенд-канон).
@@ -16,7 +15,7 @@
 ## Потребление
 
 > Манифест вызываемых presentation-эндпоинтов **gateway-сервиса**. **Обязателен**
-> — это то, что сверяет гейт-agent #15
+> — это то, что сверяет гейт-agent #14
 > (`<methodology-repo>/docs/refs/VERIFICATION.md`) с `ARCHITECTURE` **gateway**.
 > Эндпоинты должны существовать и совпадать по версии с тем, что документировано
 > в gateway. Интерфейс потребляет только gateway.

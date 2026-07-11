@@ -110,10 +110,8 @@ gitGraph
 - Вводить прямую service-to-service связность в обход брокера в `refs/` и в
   `skeletons/hub/CONVENTIONS.md` — только через брокер (`docs/refs/COMMUNICATION.md`).
   browser-facing presentation-эндпоинты (HTTP/WS для интерфейсов) — только на
-  **gateway-сервисе** (единственный browser-facing surface); прочие сервисы их
-  не держат.
-- Менять контракт `CONVENTIONS@vN` задним числом — выпущенная версия неизменна,
-  новое — `@vN+1`.
+  **gateway-сервисе**; прочие сервисы их не держат (модель — `COMMUNICATION` →
+  *gateway-сервис*).
 - Трогать lock-файлы, `.env` без одобрения.
 - Выдавать stub за реализацию — честно помечать placeholder/TODO.
 

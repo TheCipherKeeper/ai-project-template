@@ -25,7 +25,7 @@ services:
   <service-a>:
     image: <registry>/<service-a>:<tag>      # собранный образ сервис-репо
     depends_on: [broker]
-    env_file: .env                            # per-сервис конфиг (брокер-адрес, пин CONVENTIONS@vN, …)
+    env_file: .env                            # per-сервис конфиг (брокер-адрес, …)
     # внешние порты — только если принимает трафик снаружи
 
   <service-b>:

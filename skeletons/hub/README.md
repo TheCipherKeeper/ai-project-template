@@ -10,7 +10,7 @@
 | Файл | Что |
 |---|---|
 | `COMPOSITION.md` | Состав программы: сервисы + интерфейсы, их репо, зависимости, edge-реестр |
-| `CONVENTIONS.md` | Event envelope и кросс-сервисные конвенции (версионируется `@vN`) |
+| `CONVENTIONS.md` | Event envelope и кросс-сервисные конвенции |
 | `docker-compose.yml` | Системный compose: все сервисы + брокер |
 | `adr/` | Архитектурные решения (единый ADR-дом программы) |
 
@@ -18,13 +18,13 @@
 
 <!-- Заполни по мере добавления. Каждый сервис — отдельный репо (инстанциация
      из <methodology-repo>/skeletons/service/). Один из сервисов — **gateway**
-     (единственный browser-facing surface, presentation для интерфейсов); ровно
-     один, если есть ≥1 интерфейс. -->
+     (каноническая роль; ровно один, если есть ≥1 интерфейс; модель —
+     <methodology-repo>/docs/refs/COMMUNICATION.md → *gateway-сервис*). -->
 
-| Сервис | Репо | Роль | Пин контракта |
-|---|---|---|---|
-| `<gateway>` | <repo-url> | **gateway** (browser-facing) | `CONVENTIONS@v1` |
-| `<service-a>` | <repo-url> | … | `CONVENTIONS@v1` |
+| Сервис | Репо | Роль |
+|---|---|---|
+| `<gateway>` | <repo-url> | **gateway** (browser-facing) |
+| `<service-a>` | <repo-url> | … |
 
 ## Интерфейсы программы
 

@@ -57,7 +57,7 @@
 3. **Определить версию** (semver `vX.Y.Z`):
    - `PATCH` (Z) — багфикс, без изменения контрактов.
    - `MINOR` (Y) — новая функциональность, обратно совместимая.
-   - `MAJOR` (X) — breaking change (в т.ч. бамп пина `CONVENTIONS@v<N>`).
+   - `MAJOR` (X) — breaking change (в т.ч. смена `CONVENTIONS`).
 4. **Поставить annotated-тег без суффикса** на `main`:
    ```bash
    git tag -a v0.1.0 -m "v0.1.0: <краткое описание релиза>"
@@ -73,7 +73,8 @@
 
 - `AGENTS.md` → *Модель ветвления* — теги вместо release-веток.
 - `docs/guide/40-verify.md` — что должно быть зелёным перед тегом.
-- `docs/refs/VERIFICATION.md` — пин `CONVENTIONS@v<N>` (MAJOR-бамп при breaking).
+- `docs/refs/VERIFICATION.md` — модель verification gate.
+- `docs/refs/COMMUNICATION.md` — `CONVENTIONS` (MAJOR-бамп при breaking).
 
 ## Что после
 
