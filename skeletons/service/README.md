@@ -32,7 +32,8 @@ git commit -m "feat(<module>): ..."
 git push        # PR в main
 ```
 
-Стабильные версии — тегами `vX.Y.Z` на `main`. Задачи — `docs/BACKLOG.md`.
+Стабильные версии — тегами `vX.Y.Z` на `main`. Задачи — программный бэклог в
+хабе (`<hub>/BACKLOG.md`); свой `BACKLOG.md` сервис не несёт.
 
 ## Локальный запуск
 

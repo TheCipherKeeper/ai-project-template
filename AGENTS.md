@@ -69,9 +69,10 @@ gitGraph
 - **Нет дублирования фактов:** факт — один авторитет в `refs/`; в guide-фазах
   только инлайн-минимум. Сервис-rules — только в `skeletons/service/AGENTS.md`;
   правила работы над методологией — только здесь.
-- **Идентичность корня:** в корне нет сервис-артефактов
-  (`ARCHITECTURE.md`/`BACKLOG.md`/`specs/`/`docker-compose.yml`/`.env*`) — они в
-  `skeletons/service/`.
+- **Идентичность корня:** в корне нет сервис-/хаб-артефактов
+  (`ARCHITECTURE.md`/`specs/`/`docker-compose.yml`/`.env*` — в
+  `skeletons/service/`; `BACKLOG.md`/`COMPOSITION.md`/`CONVENTIONS.md` — в
+  `skeletons/hub/`).
 - **Скелеты самодостаточны:** `skeletons/{service,hub,interface,stub}/` можно
   скопировать в новый репо и сразу работать; указатели `<methodology-repo>`
   осмысленны.
@@ -104,8 +105,10 @@ gitGraph
 - Отклоняться от usecase-структуры модуля (`docs/refs/MODULE.md`) — отклонение
   через ADR (`docs/guide/60-adr.md`), не тихим отступлением. (`MODULE.md`/`SPEC.md`
   применяются только к **сервису**; интерфейсу и stub-таргету — нет.)
-- Класть в корень сервис-артефакты (`ARCHITECTURE.md`, `BACKLOG.md`, `specs/`,
-  `docker-compose.yml`, `.env*`, `Dockerfile`) — их место `skeletons/service/`.
+- Класть в корень сервис-артефакты (`ARCHITECTURE.md`, `specs/`,
+  `docker-compose.yml`, `.env*`, `Dockerfile`) — их место `skeletons/service/`;
+  хаб-артефакты (`BACKLOG.md`, `COMPOSITION.md`, `CONVENTIONS.md`) — их место
+  `skeletons/hub/`.
 - Хранить в `skeletons/` код приложения или lock-файлы — только стартовые
   файлы и шаблоны.
 - Вводить прямую service-to-service связность в обход брокера в `refs/` и в

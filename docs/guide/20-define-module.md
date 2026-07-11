@@ -38,5 +38,5 @@
 
 ## Что после
 
-- `docs/guide/30-implement-task.md` — взять пункт из «Что TODO» (через BACKLOG)
-  и реализовать.
+- `docs/guide/30-implement-task.md` — взять пункт из «Что TODO» (через
+  программный бэклог хаба `<hub>/BACKLOG.md`) и реализовать.
