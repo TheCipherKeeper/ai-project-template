@@ -25,7 +25,7 @@
 | Выпустить версию (тег: pre-release / стабильная) | `docs/guide/70-release.md` |
 | Создать интерфейс / описать визуализации (React/TS, потребление эндпоинтов gateway) | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис* / *Клиентский край* |
 | Назначить gateway-сервис (единственный browser-facing surface) | инстанциация из `skeletons/service/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис*; роль фиксируется в `COMPOSITION` хаба |
-| Создать stub-таргет (standalone-программа; форма — контейнер/CLI/…; без брокера/presentation; out-of-band-наблюдение — режим) | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Stub-таргет* |
+| Создать stub-таргет (standalone-программа; форма — контейнер/CLI/…; без брокера/presentation; out-of-band-наблюдение — при наличии поверхности) | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Stub-таргет* |
 | Узнать правила работы над методологией (ветвление, можно/нельзя, docs-verify, коммиты, язык) | `AGENTS.md` |
 
 ## Системный уровень → refs/
@@ -33,7 +33,7 @@
 | Факт | Референс |
 |---|---|
 | Структура репозиториев: хаб + N сервисов + M интерфейсов + K stub-таргетов; что где живёт; ADR home; edge-модель | `docs/refs/TOPOLOGY.md` |
-| Общение микросервисов: брокер, event envelope, без прямой связности; stub-таргет — standalone-программа, out-of-band-наблюдение как режим | `docs/refs/COMMUNICATION.md` |
+| Общение микросервисов: брокер, event envelope, без прямой связности; stub-таргет — standalone-программа, out-of-band-наблюдение при наличии поверхности | `docs/refs/COMMUNICATION.md` |
 | Verification gate: рёбра, conformance/behavioral, полный чеклист, применимость по типу репо | `docs/refs/VERIFICATION.md` |
 
 ## Per-service факты → refs/

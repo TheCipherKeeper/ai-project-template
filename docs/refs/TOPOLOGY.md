@@ -16,7 +16,7 @@
 | **Хаб** | один | `COMPOSITION.md`, `CONVENTIONS.md`, системный `docker-compose.yml`, `adr/` | состав программы (сервисы + интерфейсы), кросс-сервисные контракты (event envelope), системный compose, ADR-дом |
 | **Сервис** | по репо на сервис | `AGENTS.md`, `docs/{ARCHITECTURE,BACKLOG,specs/}`, `Dockerfile`, `docker-compose.yml` (локальный) | один микросервис; клиент брокера; **один из сервисов — `gateway` (каноническая роль: единственный browser-facing surface, экспонирует presentation-эндпоинты для интерфейсов); прочие сервисы presentation для интерфейсов не держат**; инстанциация из `skeletons/service/` |
 | **Интерфейс** | по репо на интерфейс | `AGENTS.md`, `README.md`, `docs/ARCHITECTURE`, `.env.example` | React/TS-приложение; клиент на границе; визуализации; зовёт presentation-эндпоинты **gateway-сервиса**; инстанциация из `skeletons/interface/` |
-| **Stub-таргет** | по репо на цель | `AGENTS.md`, `README.md`, `.env.example`, `docs/ARCHITECTURE`, (`Dockerfile`/`docker-compose.yml` — при `form=container`) | standalone-программа (форма — параметр дескриптора: контейнер / CLI / …), параметризуется дескриптором из manage; **не** брокер-клиент, **не** peer-сервис, без presentation-эндпоинтов. Out-of-band-наблюдение collector'ом — режим (включается, когда есть наблюдаемая поверхность), не свойство; инстанциация из `skeletons/stub/` |
+| **Stub-таргет** | по репо на цель | `AGENTS.md`, `README.md`, `.env.example`, `docs/ARCHITECTURE`, (`Dockerfile`/`docker-compose.yml` — при `form=container`) | standalone-программа; не брокер-клиент, не peer, без presentation; форма — контейнер/CLI/…; модель — `COMMUNICATION` → *Stub-таргет*; инстанциация из `skeletons/stub/` |
 
 ## Что где живёт
 
@@ -53,13 +53,10 @@
   `gateway → сервис`) — запрещена (`docs/refs/COMMUNICATION.md`). **Интерфейс →
   gateway-сервис** — по HTTP/WS presentation-эндпоинтам (клиент на границе, не
   peer-сервис); gateway берёт данные прочих сервисов из брокера.
-- **Stub-таргет** — standalone-программа, не участник брокера и не peer-сервис:
-  не publish/consume топики, не имеет presentation-эндпоинтов, не зовёт чужие
-  сервисы. Параметризуется дескриптором из manage (`form`: контейнер / CLI / …;
-  `runtime_kind`). Out-of-band-наблюдение collector'ом — **режим**, не свойство:
-  включается, когда у stub'а есть наблюдаемая поверхность (сеть/хост/процесс),
-  мимо брокера; иначе stub — просто поставляемая standalone-программа без
-  наблюдения. Деплой — по форме (контейнер — `Dockerfile`; CLI — артефакт/сборка).
+- **Stub-таргет** — standalone-программа, не участник брокера и не peer-сервис
+  (без presentation, без потребления топиков; форма — контейнер/CLI/…; при
+  наличии поверхности — out-of-band-наблюдение collector'ом). Модель и деплой по
+  форме — `docs/refs/COMMUNICATION.md` → *Stub-таргет*.
 - ADR — в хабе (`<hub>/adr/`); ссылки из сервисов, интерфейсов и stub-таргетов
   указывают туда. Хаб — единый ADR-дом программы (системные и сервисные решения).
 
@@ -75,7 +72,7 @@ graph LR
   M --> T
   S -. "broker<br/>topics" .-> G["gateway<br/>(из сервисов)"]
   G -. "HTTP/WS<br/>presentation" .-> I
-  T -. "out-of-band<br/>наблюдение (режим)" .-> S
+  T -. "out-of-band<br/>наблюдение" .-> S
 ```
 
 Гейт при изменении в узле проверяет все инцидентные рёбра (вверх —
@@ -100,10 +97,8 @@ browser-facing surface), не брокер; поэтому единого хаб
 `MODULE`/`SPEC`) — из **методологии** (прямое `методология → stub`), реестр целей
 — из **хаба** (`хаб → stub`, `COMPOSITION`). У stub нет хаб-контракта
 (он не потребляет envelope), поэтому канон тянется напрямую.
-Out-of-band-наблюдение stub'а коллектором — не брокерное ребро, а операционный
-факт (когда режим включён — collector сканирует/слушает поверхность stub'а);
-фиксируется в `COMPOSITION`
-хаба, не в `CONVENTIONS`.
+Out-of-band-наблюдение stub'а collector'ом — не брокерное ребро (stub про брокер
+ничего не знает); фиксируется в `COMPOSITION` хаба, не в `CONVENTIONS`.
 
 ## Инстанциация
 
