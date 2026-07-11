@@ -89,6 +89,8 @@ gitGraph
 - Выпустить версию (тег) — `<methodology-repo>/docs/guide/70-release.md`.
 - Автономный цикл (без человека в pre-deploy) —
   `<methodology-repo>/docs/refs/PIPELINE.md`.
+- Роли агентов (разработчик/тестировщик/ревьюер/безопасник) —
+  `<methodology-repo>/docs/refs/ROLES.md`.
 
 ## Что можно
 

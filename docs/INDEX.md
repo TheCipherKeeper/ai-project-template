@@ -36,6 +36,7 @@
 | Общение микросервисов: брокер, event envelope, без прямой связности; stub-таргет — standalone-программа, out-of-band-наблюдение при наличии поверхности | `docs/refs/COMMUNICATION.md` |
 | Verification gate: рёбра, conformance/behavioral, полный чеклист, применимость по типу репо | `docs/refs/VERIFICATION.md` |
 | Автономный цикл: без человека в pre-deploy; ревьюер — агент; человек — бэклог + баги из тест/прода | `docs/refs/PIPELINE.md` |
+| Роли агентов: разработчик / тестировщик / ревьюер / безопасник; lens, артефакты, место в гейте | `docs/refs/ROLES.md` |
 
 ## Per-service факты → refs/
 
