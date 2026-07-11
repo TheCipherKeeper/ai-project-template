@@ -45,8 +45,14 @@ gitGraph
 - `main` — стабильная, единственная интеграция. Вливается из feature-веток через PR.
 - `feat/<задача>` — от `main`, удаляется после merge.
 - Прямой коммит в `main` — **запрещён**. Только feature-ветка + PR.
+- **Ревью и merge — агент, не человек.** Ревьюер — независимый вызов агента;
+  человек в pre-deploy-цикле не участвует. Merge в `main` — по зелёному гейту,
+  без человеческого одобрения. Два касания человека: **(1)** пишет
+  `docs/BACKLOG.md`, **(2)** разбирает баг из тест/прода → задача в `BACKLOG`.
+  Полная модель — `<methodology-repo>/docs/refs/PIPELINE.md`.
 - Релизы — тегами `vX.Y.Z` (semver) на `main`; release-ветки не заводятся
-  (`<methodology-repo>/docs/guide/70-release.md`).
+  (`<methodology-repo>/docs/guide/70-release.md`). В автономном цикле rc режется
+  автоматически после merge.
 
 Процедура работы — `<methodology-repo>/docs/guide/30-implement-task.md`.
 
@@ -81,6 +87,8 @@ gitGraph
   структура compose/Dockerfile — `<methodology-repo>/docs/refs/DEPLOYMENT.md`.
 - Записать ADR — `<methodology-repo>/docs/guide/60-adr.md`.
 - Выпустить версию (тег) — `<methodology-repo>/docs/guide/70-release.md`.
+- Автономный цикл (без человека в pre-deploy) —
+  `<methodology-repo>/docs/refs/PIPELINE.md`.
 
 ## Что можно
 

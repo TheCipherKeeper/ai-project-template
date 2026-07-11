@@ -35,6 +35,7 @@
 | Структура репозиториев: хаб + N сервисов + M интерфейсов + K stub-таргетов; что где живёт; ADR home; edge-модель | `docs/refs/TOPOLOGY.md` |
 | Общение микросервисов: брокер, event envelope, без прямой связности; stub-таргет — standalone-программа, out-of-band-наблюдение при наличии поверхности | `docs/refs/COMMUNICATION.md` |
 | Verification gate: рёбра, conformance/behavioral, полный чеклист, применимость по типу репо | `docs/refs/VERIFICATION.md` |
+| Автономный цикл: без человека в pre-deploy; ревьюер — агент; человек — бэклог + баги из тест/прода | `docs/refs/PIPELINE.md` |
 
 ## Per-service факты → refs/
 
