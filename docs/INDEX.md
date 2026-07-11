@@ -33,8 +33,8 @@
 | Факт | Референс |
 |---|---|
 | Структура репозиториев: хаб + N сервисов + M интерфейсов + K stub-таргетов; что где живёт; ADR home; edge-модель | `docs/refs/TOPOLOGY.md` |
-| Общение микросервисов: брокер, event envelope, пин контрактов, без прямой связности; stub-таргет — standalone-программа, out-of-band-наблюдение как режим | `docs/refs/COMMUNICATION.md` |
-| Verification gate: рёбра, версионирование, conformance/behavioral, полный чеклист, применимость по типу репо | `docs/refs/VERIFICATION.md` |
+| Общение микросервисов: брокер, event envelope, без прямой связности; stub-таргет — standalone-программа, out-of-band-наблюдение как режим | `docs/refs/COMMUNICATION.md` |
+| Verification gate: рёбра, conformance/behavioral, полный чеклист, применимость по типу репо | `docs/refs/VERIFICATION.md` |
 
 ## Per-service факты → refs/
 

@@ -1,18 +1,11 @@
 # Конвенции общения микросервисов
 
 Кросс-сервисный контракт: формат сообщений (event envelope) и общие правила.
-Версиируются (`CONVENTIONS@vN`). Сервисы потребляют на пиннённой версии;
-контракт выпущенной версии неизменен (новое — `@vN+1`).
+Сервисы потребляют текущий `CONVENTIONS` (без версионирования — см.
+`<methodology-repo>/docs/refs/COMMUNICATION.md`).
 
 > Скелет. Заполни под программу. Модель общения —
 > `<methodology-repo>/docs/refs/COMMUNICATION.md`.
-
-## Версия
-
-- **Текущая:** `CONVENTIONS@v1`
-- **Совместимость:** <!-- backward-compatible? required? -->
-- **Breaking →** `@v2` отдельным PR; сервисы мигрируют каждый своим PR
-  (бамп пина + правки). См. `AGENTS.md` → *Версионирование контрактов*.
 
 ## Event envelope
 
@@ -22,7 +15,6 @@
 
 ```json
 {
-  "envelope_version": "1",
   "event_type": "<service>.<domain>.<action>",
   "event_id": "<uuid>",
   "occurred_at": "<RFC3339>",
@@ -34,7 +26,6 @@
 
 | Поле | Тип | Обяз. | Назначение |
 |---|---|---|---|
-| `envelope_version` | int | да | версия envelope (соответствует `CONVENTIONS@vN`) |
 | `event_type` | string | да | тип события; пространство имён = `<service>.<domain>.<action>` |
 | `event_id` | uuid | да | идемпотентность (consumer дедуплирует по нему) |
 | `occurred_at` | RFC3339 | да | когда событие произошло (не когда опубликовано) |
@@ -57,13 +48,9 @@
   **только** на gateway-сервисе; presentation-API versioning — на gateway (одно
   место, не per-service). Прочие сервисы presentation для интерфейсов не держат.
 - Не изобретать свой envelope в сервисах — только этот.
-- Backward-compatible изменения (новое опц. поле) — **без bump**: остаться
-  `@vN` (старые consumer'ы не ломаются). Breaking — **major bump**:
-  `@vN` → `@vN+1` (напр. `@v1` → `@v2`) отдельным PR. Схема целочисленная
-  major-only (`@v1`, `@v2`, …) — minor-бампа нет.
 - Idempotency: consumer дедуплирует по `event_id`.
 
 ## ADR-ссылки
 
 - <!-- ADR-NNNN: почему выбрали Kafka/Redpanda/NATS -->
-- <!-- ADR-NNNN: формат trace_id / схема версионирования -->
+- <!-- ADR-NNNN: формат trace_id -->

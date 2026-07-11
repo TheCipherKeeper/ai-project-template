@@ -36,7 +36,7 @@ docker compose down            # остановить
 
 - `docs/refs/DEPLOYMENT.md` — структура compose, требования к Dockerfile, env.
 - `docker-compose.yml` (корень) — сам compose.
-- `docs/ARCHITECTURE.md` → *Брокер* — топики, адрес, пин `CONVENTIONS@v<N>`.
+- `docs/ARCHITECTURE.md` → *Брокер* — топики, адрес.
 
 ## Что после
 

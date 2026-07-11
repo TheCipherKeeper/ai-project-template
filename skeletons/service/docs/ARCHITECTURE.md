@@ -51,9 +51,8 @@ graph LR
 
 - **Брокер:** <Kafka | Redpanda | NATS>
 - **Адрес (локальная разработка):** из `docker-compose.yml`, сервис `broker`.
-- **Контракты хаба:** `CONVENTIONS@v<N>` — пин версии, по которой гейт
-  проверяет сервис (см. `<methodology-repo>/docs/refs/VERIFICATION.md`, процедура — `<methodology-repo>/docs/guide/40-verify.md`).
-  Бамп пина — отдельным PR.
+- **Контракты хаба:** `CONVENTIONS` — текущий контракт хаба, по которому гейт
+  проверяет сервис (см. `<methodology-repo>/docs/refs/COMMUNICATION.md`, процедура — `<methodology-repo>/docs/guide/40-verify.md`).
 
 Топики сервиса:
 
@@ -87,7 +86,7 @@ graph LR
        presentation-эндпоинты (HTTP/WS) для интерфейсов — путь, метод, версия,
        формат ответа. Интерфейсы зовут только их (см.
        <methodology-repo>/docs/refs/COMMUNICATION.md → «gateway-сервис» /
-       «Клиентский край»); гейт-agent #15 сверяет заявленные интерфейсом вызовы с
+       «Клиентский край»); гейт-agent #14 сверяет заявленные интерфейсом вызовы с
        этой таблицей.
      • Если сервис **обычный**: browser-facing presentation здесь НЕ описывай —
        прочие сервисы presentation для интерфейсов не держат. Их клиентский край
@@ -110,7 +109,7 @@ graph LR
   `docker-compose.yml` (брокер + этот сервис). Детали —
   `<methodology-repo>/docs/refs/DEPLOYMENT.md`, запуск — `<methodology-repo>/docs/guide/50-deploy.md`.
 - Системный compose (все сервисы вместе) — в хабе, не здесь.
-- Соответствие хабу (на пиннённой версии контрактов) — verification-гейт
+- Соответствие хабу (текущий `CONVENTIONS`) — verification-гейт
   (`<methodology-repo>/docs/refs/VERIFICATION.md`, процедура — `<methodology-repo>/docs/guide/40-verify.md`).
 
 ## Ссылки

@@ -1,9 +1,8 @@
 # Состав программы
 
 Системный контекст микросервисной программы: какие сервисы и интерфейсы
-входят, как зависят, какой брокер, какой пин контрактов. Это **edge-реестр**
-для verification «вниз» (хаб → все сервисы + хаб → все интерфейсы): гейт
-перечисляет детей отсюда.
+входят, как зависят, какой брокер. Это **edge-реестр** для verification «вниз»
+(хаб → все сервисы + хаб → все интерфейсы): гейт перечисляет детей отсюда.
 
 > Скелет. Заполни под программу. Методология — в `<methodology-repo>/docs/`;
 > общение микросервисов — `<methodology-repo>/docs/refs/COMMUNICATION.md`.
@@ -23,11 +22,11 @@
 > не держат. Модель — `<methodology-repo>/docs/refs/COMMUNICATION.md` →
 > *gateway-сервис*.
 
-| Сервис | Репо | Роль | Публикует / Читает | Пин контракта |
-|---|---|---|---|---|
-| `<gateway>` | <repo-url> | **gateway** (browser-facing) | consume: `…` / publish: `…` | `CONVENTIONS@v1` |
-| `<service-a>` | <repo-url> | … | publish: `…` / consume: `…` | `CONVENTIONS@v1` |
-| `<service-b>` | <repo-url> | … | … | `CONVENTIONS@v1` |
+| Сервис | Репо | Роль | Публикует / Читает |
+|---|---|---|---|
+| `<gateway>` | <repo-url> | **gateway** (browser-facing) | consume: `…` / publish: `…` |
+| `<service-a>` | <repo-url> | … | publish: `…` / consume: `…` |
+| `<service-b>` | <repo-url> | … | … |
 
 ## Интерфейсы
 
@@ -48,16 +47,6 @@
 graph LR
     A["<service-a>"] --> T1["topic-x"] --> B["<service-b>"]
 ```
-
-## Версии контрактов
-
-| Версия | Статус | Что |
-|---|---|---|
-| `CONVENTIONS@v1` | supported | начальный envelope |
-| `CONVENTIONS@v2` | — | <!-- planned breaking: trace_id, … --> |
-
-Правила версионирования — `AGENTS.md` → *Версионирование контрактов*;
-почему пин обязателен — `<methodology-repo>/docs/refs/VERIFICATION.md`.
 
 ## ADR
 
