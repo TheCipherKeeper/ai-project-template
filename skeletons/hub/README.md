@@ -19,7 +19,7 @@
 <!-- Заполни по мере добавления. Каждый сервис — отдельный репо (инстанциация
      из <methodology-repo>/skeletons/service/). Один из сервисов — **gateway**
      (каноническая роль; ровно один, если есть ≥1 интерфейс; модель —
-     <methodology-repo>/docs/refs/COMMUNICATION.md → *gateway-сервис*). -->
+     <methodology-repo>/docs/refs/COMMUNICATION.md → *Сервис-шлюз*). -->
 
 | Сервис | Репо | Роль |
 |---|---|---|

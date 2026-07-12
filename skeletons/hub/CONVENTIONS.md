@@ -47,7 +47,7 @@
 - **browser-facing presentation-эндпоинты** (HTTP/WS для интерфейсов) живут
   **только** на gateway-сервисе; presentation-API versioning — на gateway (одно
   место, не per-service). Модель — `<methodology-repo>/docs/refs/COMMUNICATION.md`
-  → *gateway-сервис*.
+  → *Сервис-шлюз*.
 - Не изобретать свой envelope в сервисах — только этот.
 - Idempotency: consumer дедуплирует по `event_id`.
 

@@ -1,7 +1,8 @@
-# docs/INDEX — роутер документации
+# Указатель документов
 
-Точка входа в методологию. Найди свою ситуацию — открой один файл. Каждая фаза
-`guide/` **самодостаточна**: читается одна. `refs/` — факты по запросу.
+Начальная точка работы с методологией. Выберите рабочую ситуацию и откройте
+указанный документ. Каждая процедура из `guide/` самодостаточна. Канонические
+технические сведения находятся в `refs/`.
 
 > Центральная методология (читается как гайд) + `skeletons/` (стартовые наборы
 > для копирования). Хаб/сервисы — отдельные репо из `skeletons/`; этот репо —
@@ -19,13 +20,13 @@
 | Добавить модуль / написать спеку | `docs/guide/20-define-module.md` |
 | Спроектировать модуль изнутри (usecases/ports/domain/adapters) | `docs/guide/20-define-module.md` + `docs/refs/MODULE.md` |
 | Взять задачу из бэклога и реализовать (рабочий цикл) | `docs/guide/30-implement-task.md` |
-| Проверить перед коммитом (verification gate) | `docs/guide/40-verify.md` |
+| Выполнить проверку перед коммитом | `docs/guide/40-verify.md` |
 | Запустить локально (брокер + сервис) | `docs/guide/50-deploy.md` |
 | Зафиксировать архитектурное решение (ADR) | `docs/guide/60-adr.md` |
-| Выпустить версию (тег: pre-release / стабильная) | `docs/guide/70-release.md` |
-| Создать интерфейс / описать визуализации (React/TS, потребление эндпоинтов gateway) | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис* / *Клиентский край* |
-| Назначить gateway-сервис (единственный browser-facing surface) | инстанциация из `skeletons/service/` + `docs/refs/COMMUNICATION.md` → *gateway-сервис*; роль фиксируется в `COMPOSITION` хаба |
-| Создать stub-таргет (standalone-программа; форма — контейнер/CLI/…; без брокера/presentation; out-of-band-наблюдение — при наличии поверхности) | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Stub-таргет* |
+| Выпустить кандидата или стабильную версию | `docs/guide/70-release.md` |
+| Создать пользовательский интерфейс и описать его обращения к API | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *Сервис-шлюз* / *Пользовательский интерфейс* |
+| Назначить сервис-шлюз, предоставляющий клиентский API | создать сервис из `skeletons/service/`; роль зафиксировать в `COMPOSITION` хаба; см. `docs/refs/COMMUNICATION.md` → *Сервис-шлюз* |
+| Создать имитатор цели | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Имитатор цели* |
 | Узнать правила работы над методологией (ветвление, можно/нельзя, docs-verify, коммиты, язык) | `AGENTS.md` |
 
 ## Системный уровень → refs/
@@ -34,16 +35,16 @@
 |---|---|
 | Структура репозиториев: хаб + N сервисов + M интерфейсов + K stub-таргетов; что где живёт; ADR home; edge-модель | `docs/refs/TOPOLOGY.md` |
 | Общение микросервисов: брокер, event envelope, без прямой связности; stub-таргет — standalone-программа, out-of-band-наблюдение при наличии поверхности | `docs/refs/COMMUNICATION.md` |
-| Verification gate: рёбра, conformance/behavioral, полный чеклист, применимость по типу репо | `docs/refs/VERIFICATION.md` |
-| Автономный цикл: без человека в pre-deploy; ревьюер — агент; человек — бэклог + баги из тест/прода | `docs/refs/PIPELINE.md` |
+| Проверка связей, структурного соответствия и работоспособности | `docs/refs/VERIFICATION.md` |
+| Автономный цикл разработки и точки участия человека | `docs/refs/PIPELINE.md` |
 | Роли агентов: разработчик / тестировщик / ревьюер / безопасник; lens, артефакты, место в гейте | `docs/refs/ROLES.md` |
 
 ## Per-service факты → refs/
 
 | Факт | Референс |
 |---|---|
-| Toolchain, layout, команды стека (Python/Go/Rust/TS) | `docs/refs/STACKS.md` |
-| Раскладка каталогов сервиса (workspace модулей) | `docs/refs/LAYOUT.md` |
+| Набор инструментов и команды для Python, Go, Rust и TypeScript | `docs/refs/STACKS.md` |
+| Структура каталогов сервиса и размещение модулей | `docs/refs/LAYOUT.md` |
 | Внутренняя архитектура модуля (usecases/ports/domain/adapters) | `docs/refs/MODULE.md` |
 | Структура compose, Dockerfile, env | `docs/refs/DEPLOYMENT.md` |
 | Канон структуры спеки (7 секций) | `docs/refs/SPEC.md` |
@@ -54,7 +55,7 @@
 |---|---|
 | Создать хаб-репо (системные контракты, состав, compose) | `skeletons/hub/` |
 | Создать сервис-репо (AGENTS, README, compose, env, Dockerfile, docs/) | `skeletons/service/` |
-| Создать interface-репо (React/TS, визуализации, потребление эндпоинтов gateway) | `skeletons/interface/` |
+| Создать репозиторий пользовательского интерфейса | `skeletons/interface/` |
 | Назначить gateway-сервис (browser-facing, из сервисов) | `skeletons/service/` (роль gateway — в `COMPOSITION` хаба) |
 | Создать stub-репо (standalone-программа; форма — контейнер/CLI/…; без брокера/presentation) | `skeletons/stub/` |
 

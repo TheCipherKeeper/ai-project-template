@@ -66,7 +66,7 @@ gitGraph
   по HTTP/WS — разрешено; это клиентский край, не service-to-service.)
 - Держать **browser-facing presentation-эндпоинты** где-либо, кроме
   **gateway-сервиса** — только он их держит; ровно один, если есть ≥1 интерфейс
-  (модель — `<methodology-repo>/docs/refs/COMMUNICATION.md` → *gateway-сервис*).
+  (модель — `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Сервис-шлюз*).
 
 ## Коммиты
 
