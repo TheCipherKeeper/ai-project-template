@@ -2,7 +2,7 @@ from pathlib import Path
 
 import json
 
-from verify import markdown_files, run, validate_json
+from verify import markdown_files, non_mermaid_diagrams, run, validate_json
 
 
 def make_hub(tmp_path: Path, methodology_ref: str = "v1.0.0") -> None:
@@ -27,6 +27,58 @@ def test_markdown_files_ignore_dependency_and_build_trees(tmp_path: Path) -> Non
         path.write_text("ignored", encoding="utf-8")
 
     assert list(markdown_files(tmp_path)) == [included]
+
+
+def test_text_diagram_is_rejected(tmp_path: Path) -> None:
+    diagram = tmp_path / "ARCHITECTURE.md"
+    diagram.write_text("```text\nA → B\n```\n", encoding="utf-8")
+
+    assert non_mermaid_diagrams(tmp_path) == ["ARCHITECTURE.md:1"]
+
+
+def test_mermaid_diagram_is_accepted(tmp_path: Path) -> None:
+    diagram = tmp_path / "ARCHITECTURE.md"
+    diagram.write_text("```mermaid\nflowchart LR\n    A --> B\n```\n", encoding="utf-8")
+
+    assert non_mermaid_diagrams(tmp_path) == []
+
+
+def test_ascii_diagram_variants_are_rejected(tmp_path: Path) -> None:
+    diagram = tmp_path / "ARCHITECTURE.md"
+    diagram.write_text(
+        "```text\nA -> B\n```\n\n````\n+---+\n| A |\n+---+\n````\n",
+        encoding="utf-8",
+    )
+
+    assert non_mermaid_diagrams(tmp_path) == ["ARCHITECTURE.md:1", "ARCHITECTURE.md:5"]
+
+
+def test_tilde_diagram_fence_is_rejected(tmp_path: Path) -> None:
+    diagram = tmp_path / "ARCHITECTURE.md"
+    diagram.write_text("~~~plantuml\nA -> B\n~~~\n", encoding="utf-8")
+
+    assert non_mermaid_diagrams(tmp_path) == ["ARCHITECTURE.md:1"]
+
+
+def test_explicitly_typed_log_with_arrow_is_accepted(tmp_path: Path) -> None:
+    log = tmp_path / "RUNBOOK.md"
+    log.write_text("```console\nworker --> ready\n```\n", encoding="utf-8")
+
+    assert non_mermaid_diagrams(tmp_path) == []
+
+
+def test_commonmark_fence_variants_are_rejected(tmp_path: Path) -> None:
+    diagram = tmp_path / "ARCHITECTURE.md"
+    diagram.write_text("   ```uml\nA -> B\n   ````\n", encoding="utf-8")
+
+    assert non_mermaid_diagrams(tmp_path) == ["ARCHITECTURE.md:1"]
+
+
+def test_ascii_tree_is_rejected(tmp_path: Path) -> None:
+    diagram = tmp_path / "ARCHITECTURE.md"
+    diagram.write_text("```text\nroot\n+-- child\n+-- leaf\n```\n", encoding="utf-8")
+
+    assert non_mermaid_diagrams(tmp_path) == ["ARCHITECTURE.md:1"]
 
 
 def test_hub_rejects_legacy_in_flight_status(tmp_path: Path) -> None:

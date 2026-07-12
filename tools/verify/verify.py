@@ -90,6 +90,13 @@ TASK_PATTERN = re.compile(
     r"^### (TASK-[0-9]{4,})\. (?:\[ \] (ready|needs-input|blocked-external|automation-failed|retry-exhausted)|\[x\]) — .+$"
 )
 LEGACY_DOC_PATTERN = re.compile(r"docs/(?:guide|refs)/")
+NON_MERMAID_DIAGRAM_LANGUAGES = frozenset({
+    "d2", "dot", "graphviz", "nomnoml", "plantuml", "puml", "uml", "vega", "vega-lite"
+})
+TEXT_DIAGRAM_PATTERN = re.compile(
+    r"(?:-{1,2}>|<-{1,2}|[→←↔]|[┌┐└┘├┤┬┴┼│]|^\s*\+[-=]{2,}(?:\+|\s))",
+    re.MULTILINE,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -161,6 +168,43 @@ def markdown_files(root: Path):
     for path in root.rglob("*.md"):
         if not ignored_trees.intersection(path.relative_to(root).parts):
             yield path
+
+
+def fenced_blocks(text: str):
+    """Выделить ограждённые блоки CommonMark с их языком, телом и строкой."""
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines):
+        opening = re.match(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$", lines[index])
+        if not opening:
+            index += 1
+            continue
+        fence = opening.group("fence")
+        marker = fence[0]
+        language = opening.group("info").strip().split(maxsplit=1)[0].lower() if opening.group("info").strip() else ""
+        start = index
+        index += 1
+        body = []
+        closing = re.compile(rf"^ {{0,3}}{re.escape(marker)}{{{len(fence)},}}\s*$")
+        while index < len(lines) and not closing.match(lines[index]):
+            body.append(lines[index])
+            index += 1
+        if index < len(lines):
+            yield start + 1, language, "\n".join(body)
+            index += 1
+
+
+def non_mermaid_diagrams(root: Path) -> list[str]:
+    """Найти диаграммы Markdown, оформленные не блоками Mermaid."""
+    violations = []
+    for markdown in markdown_files(root):
+        text = markdown.read_text(encoding="utf-8")
+        for line, language, body in fenced_blocks(text):
+            is_other_diagram_language = language in NON_MERMAID_DIAGRAM_LANGUAGES
+            is_text_diagram = language in {"", "text"} and TEXT_DIAGRAM_PATTERN.search(body)
+            if is_other_diagram_language or is_text_diagram:
+                violations.append(f"{markdown.relative_to(root)}:{line}")
+    return violations
 
 
 def broken_markdown_links(root: Path) -> list[str]:
@@ -422,6 +466,12 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
     if broken_links:
         links_message = "Висячие ссылки: " + "; ".join(broken_links)
     checks.append(result("VER-010", not broken_links, links_message, "*.md"))
+
+    diagram_violations = non_mermaid_diagrams(root)
+    diagrams_message = "Все диаграммы Markdown оформлены блоками Mermaid"
+    if diagram_violations:
+        diagrams_message = "Диаграммы не в Mermaid: " + ", ".join(diagram_violations)
+    checks.append(result("VER-014", not diagram_violations, diagrams_message, "*.md"))
 
     legacy_references = []
     for markdown in markdown_files(root):
