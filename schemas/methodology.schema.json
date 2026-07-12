@@ -2,10 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/methodology.schema.json",
   "type": "object",
-  "required": ["schema_version", "repository_type"],
+  "required": ["schema_version", "repository_type", "methodology_ref"],
   "properties": {
     "schema_version": { "const": 1 },
-    "repository_type": { "enum": ["methodology", "hub", "service", "interface", "standalone"] }
+    "repository_type": { "enum": ["methodology", "hub", "service", "interface", "standalone"] },
+    "methodology_ref": {
+      "type": "string",
+      "pattern": "^(self|[0-9a-f]{7,40}|v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+)?)$"
+    }
   },
   "additionalProperties": false
 }

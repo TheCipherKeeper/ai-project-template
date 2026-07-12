@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
+  "additionalProperties": false,
   "required": ["status", "repository_type", "checks"],
   "properties": {
     "status": { "enum": ["passed", "failed"] },
@@ -9,6 +10,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "status", "message"],
         "properties": {
           "id": { "pattern": "^VER-[0-9]{3}$" },
