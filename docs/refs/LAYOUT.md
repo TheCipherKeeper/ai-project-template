@@ -102,7 +102,7 @@
 
 - **`docs/ARCHITECTURE.md`** — обязательный: таблица потребляемых эндпоинтов
   **gateway-сервиса** (`gateway | эндпоинт | версия | назначение`) + страницы/роуты.
-  Это то, что сверяет гейт-agent #14 (`docs/refs/VERIFICATION.md`) с `ARCHITECTURE`
+  Это то, что сверяет гейт-agent `VER-014` (`docs/refs/VERIFICATION.md`) с `ARCHITECTURE`
   **gateway** (единственного browser-facing surface). Интерфейс потребляет только
   gateway, не прочие сервисы.
 - Брокера, `Dockerfile`-сервиса, `specs` здесь **нет** — это не сервис. Бэклог —

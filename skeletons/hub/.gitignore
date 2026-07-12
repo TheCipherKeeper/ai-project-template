@@ -7,3 +7,8 @@
 .vscode/
 .idea/
 .DS_Store
+
+# CI evidence хранится как artifact
+verification.json
+.evidence/*
+!.evidence/README.md

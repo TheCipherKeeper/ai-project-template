@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["status", "repository_type", "methodology_version", "checks"],
+  "properties": {
+    "status": { "enum": ["passed", "failed"] },
+    "repository_type": { "type": "string" },
+    "methodology_version": { "type": "string" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "message"],
+        "properties": {
+          "id": { "pattern": "^VER-[0-9]{3}$" },
+          "status": { "enum": ["passed", "failed", "not_applicable"] },
+          "message": { "type": "string" },
+          "location": { "type": "string" }
+        }
+      }
+    }
+  }
+}

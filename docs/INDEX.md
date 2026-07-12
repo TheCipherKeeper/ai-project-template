@@ -30,19 +30,39 @@
 
 | Мне нужно… | Читай |
 |---|---|
+| Подготовить однозначную задачу и проверить Definition of Ready | `docs/guide/05-define-task.md` + `docs/refs/TASK.md` |
 | Войти в проект, поднять сервис с нуля | `docs/guide/00-bootstrap.md` |
 | Описать архитектуру (роль, модули, брокер, топики, граница) | `docs/guide/10-architecture.md` |
 | Добавить модуль / написать спеку | `docs/guide/20-define-module.md` |
 | Спроектировать модуль изнутри (usecases/ports/domain/adapters) | `docs/guide/20-define-module.md` + `docs/refs/MODULE.md` |
 | Взять задачу из бэклога и реализовать (рабочий цикл) | `docs/guide/30-implement-task.md` |
 | Выполнить проверку перед коммитом | `docs/guide/40-verify.md` |
+| Обработать блокировку или исчерпание попыток | `docs/guide/35-handle-blocker.md` |
+| Выполнить независимое agent-review | `docs/guide/45-review-change.md` |
 | Запустить локально (брокер + сервис) | `docs/guide/50-deploy.md` |
+| Проверить RC в тестовой среде | `docs/guide/55-verify-deployment.md` + `docs/refs/OPERATIONS.md` |
 | Зафиксировать архитектурное решение (ADR) | `docs/guide/60-adr.md` |
+| Восстановить упавший pipeline или зависший лок | `docs/guide/65-recover-pipeline.md` + `docs/refs/RECOVERY.md` |
 | Выпустить кандидата или стабильную версию | `docs/guide/70-release.md` |
 | Создать пользовательский интерфейс и описать его обращения к API | `skeletons/interface/` + `docs/refs/COMMUNICATION.md` → *Сервис-шлюз* / *Пользовательский интерфейс* |
 | Назначить сервис-шлюз, предоставляющий клиентский API | создать сервис из `skeletons/service/`; роль зафиксировать в `COMPOSITION` хаба; см. `docs/refs/COMMUNICATION.md` → *Сервис-шлюз* |
 | Создать автономный компонент | `skeletons/stub/` + `docs/refs/COMMUNICATION.md` → *Автономный компонент* |
 | Узнать правила работы над методологией (ветвление, можно/нельзя, docs-verify, коммиты, язык) | `AGENTS.md` |
+
+## Сквозные политики
+
+| Вопрос | Авторитет |
+|---|---|
+| Формат задачи, DoR, диагностические статусы | `docs/refs/TASK.md` |
+| Риск и предел автономности | `docs/refs/RISK.md` |
+| Полномочия агентов | `docs/refs/POLICY.md` |
+| Лимиты повторов | `docs/refs/RETRY.md` |
+| API/event-контракты | `docs/refs/CONTRACTS.md` |
+| Эксплуатация и post-deploy | `docs/refs/OPERATIONS.md` |
+| Миграции данных | `docs/refs/MIGRATIONS.md` |
+| Evidence выполнения | `docs/refs/EVIDENCE.md` |
+| Архитектурный профиль и границы универсального канона | `docs/refs/PROFILES.md` |
+| Acceptance-сценарии самой методологии | `docs/refs/VALIDATION_SCENARIOS.md` |
 
 ## Системный уровень → refs/
 

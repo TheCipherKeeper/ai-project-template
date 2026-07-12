@@ -23,6 +23,10 @@
 
 ## Документация (приоритет)
 
+Версия внешнего канона закреплена в `.methodology.yml`; CI читает этот tag, а
+не плавающий `main`. Обязательные проверки работают fail closed; риск, evidence
+и recovery определены центральными `RISK.md`, `EVIDENCE.md`, `RECOVERY.md`.
+
 В порядке убывания **по ярусам**: хаб → этот `AGENTS.md` →
 методология (`<methodology-repo>/docs/guide/` и `/docs/refs/` — **равные**,
 разные виды) → `docs/ARCHITECTURE.md` → код.

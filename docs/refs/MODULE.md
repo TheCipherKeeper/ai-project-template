@@ -71,5 +71,5 @@ graph LR
   импортируют только ports+domain, не adapters; adapters реализуют ports;
   модуль реэкспортит только input ports.
 
-Инварианты #12, #13 — в `docs/refs/VERIFICATION.md`. Отклонение от канона —
+Инварианты `VER-012`, `VER-013` — в `docs/refs/VERIFICATION.md`. Отклонение от канона —
 повод для ADR (`docs/guide/60-adr.md`), не тихое отступление.

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["task_id", "run_id", "methodology_version", "commit", "status", "created_at"],
+  "properties": {
+    "task_id": { "pattern": "^TASK-[0-9]{4,}$" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "methodology_version": { "type": "string" },
+    "commit": { "pattern": "^[0-9a-f]{7,40}$" },
+    "status": { "enum": ["passed", "failed", "held", "not_applicable"] },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -45,3 +45,8 @@ Thumbs.db
 .env.*
 !.env.example
 config/local.*
+
+# Локальные отчёты; CI хранит их как evidence artifacts
+verification.json
+.evidence/*
+!.evidence/README.md

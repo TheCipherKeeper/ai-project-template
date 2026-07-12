@@ -16,3 +16,7 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
+
+verification.json
+.evidence/*
+!.evidence/README.md

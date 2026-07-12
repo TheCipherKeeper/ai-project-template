@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["event", "version", "owner", "producer", "consumers", "delivery", "idempotency_key", "compatibility"],
+  "properties": {
+    "event": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]+$" },
+    "version": { "type": "integer", "minimum": 1 },
+    "owner": { "type": "string" },
+    "producer": { "type": "string" },
+    "consumers": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "delivery": { "enum": ["at-most-once", "at-least-once"] },
+    "idempotency_key": { "type": "string" },
+    "compatibility": { "enum": ["backward", "forward", "full", "none"] },
+    "contains_pii": { "type": "boolean" }
+  }
+}

@@ -1,0 +1,17 @@
+name: verify
+on: [pull_request, push]
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.METHODOLOGY_REPOSITORY }}
+          ref: ${{ vars.METHODOLOGY_VERSION }}
+          path: .methodology-policy
+      - shell: pwsh
+        run: ./.methodology-policy/tools/verify/verify.ps1 -Root ${{ github.workspace }} -Report verification.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: verification, path: verification.json }
