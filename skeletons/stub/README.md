@@ -2,7 +2,7 @@
 
 <!-- 1–2 предложения: назначение автономного компонента и его место в системе.
      Системный контекст — в хабе COMPOSITION.md; топология —
-     в <methodology-repo>/docs/refs/TOPOLOGY.md. -->
+     в <methodology-repo>/docs/ARCHITECTURE.md. -->
 
 **Стек:** <Python | Go | Rust | TypeScript>   <!-- один на компонент -->
 **Хаб:** <hub-repo>                           <!-- COMPOSITION/CONVENTIONS/системный compose/ADR -->
@@ -31,7 +31,7 @@
 
 ```bash
 git checkout main && git pull && git checkout -b feat/<задача>
-# код/конфиг; проверка перед коммитом — <methodology-repo>/docs/guide/40-verify.md
+# код/конфиг; цикл — <methodology-repo>/docs/WORKFLOW.md
 git commit -m "feat(banner): ..." && git push   # PR в main
 ```
 
@@ -47,7 +47,7 @@ cp .env.example .env && docker compose up --build   # этот stub-контей
 
 <!-- Для form=cli: команда запуска артефакта/сборки. -->
 
-Процедура — `<methodology-repo>/docs/guide/50-deploy.md` (для `form=container` —
+Эксплуатация — `<methodology-repo>/docs/OPERATIONS.md` (для `form=container` —
 контейнер-цель, брокера в окружении нет; для CLI — артефакт/сборка).
 
 ## Лицензия

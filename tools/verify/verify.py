@@ -16,7 +16,11 @@ REQUIRED_BY_TYPE = {
         "AGENTS.md",
         "README.md",
         "docs/INDEX.md",
-        "docs/refs/VERIFICATION.md",
+        "docs/START.md",
+        "docs/WORKFLOW.md",
+        "docs/ARCHITECTURE.md",
+        "docs/OPERATIONS.md",
+        "docs/REFERENCE.md",
         ".methodology.yml",
     ),
     "hub": (
@@ -89,8 +93,20 @@ def result(check_id: str, passed: bool, message: str, location: str) -> dict[str
 
 
 def markdown_files(root: Path):
+    ignored_trees = {
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "build",
+        "dist",
+        "node_modules",
+        "target",
+        "vendor",
+    }
     for path in root.rglob("*.md"):
-        if ".git" not in path.relative_to(root).parts:
+        if not ignored_trees.intersection(path.relative_to(root).parts):
             yield path
 
 
@@ -153,12 +169,12 @@ def run(root: Path) -> dict[str, object]:
 
     backlog = root / "BACKLOG.md" if kind == "hub" else root / "skeletons/hub/BACKLOG.md"
     backlog_text = backlog.read_text(encoding="utf-8") if backlog.is_file() else ""
-    in_flight = len(re.findall(r"^### .*\[~\]", backlog_text, re.MULTILINE))
+    legacy_in_flight = len(re.findall(r"^### .*\[~\]", backlog_text, re.MULTILINE))
     checks.append(
         result(
             "VER-005",
-            in_flight <= 1,
-            "В backlog не более одного активного пункта",
+            legacy_in_flight == 0,
+            "В backlog нет устаревшего статуса [~]",
             "BACKLOG.md" if kind == "hub" else "skeletons/hub/BACKLOG.md",
         )
     )

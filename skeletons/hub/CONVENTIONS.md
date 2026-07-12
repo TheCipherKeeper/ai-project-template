@@ -2,10 +2,10 @@
 
 Кросс-сервисный контракт: формат сообщений (event envelope) и общие правила.
 Сервисы потребляют текущий `CONVENTIONS` (без версионирования — см.
-`<methodology-repo>/docs/refs/COMMUNICATION.md`).
+`<methodology-repo>/docs/ARCHITECTURE.md`).
 
 > Скелет. Заполни под программу. Модель общения —
-> `<methodology-repo>/docs/refs/COMMUNICATION.md`.
+> `<methodology-repo>/docs/ARCHITECTURE.md`.
 
 ## Event envelope
 
@@ -46,7 +46,7 @@
   HTTP/WS — разрешено; это клиентский край, не service-to-service.)
 - **browser-facing presentation-эндпоинты** (HTTP/WS для интерфейсов) живут
   **только** на gateway-сервисе; presentation-API versioning — на gateway (одно
-  место, не per-service). Модель — `<methodology-repo>/docs/refs/COMMUNICATION.md`
+  место, не per-service). Модель — `<methodology-repo>/docs/ARCHITECTURE.md`
   → *Сервис-шлюз*.
 - Не изобретать свой envelope в сервисах — только этот.
 - Idempotency: consumer дедуплирует по `event_id`.

@@ -2,7 +2,7 @@
 
 <!-- 1–2 предложения: что за сервис, какую роль в программе играет.
      Системный контекст — в хабе COMPOSITION.md; топология репозиториев —
-     в <methodology-repo>/docs/refs/TOPOLOGY.md. -->
+     в <methodology-repo>/docs/ARCHITECTURE.md. -->
 
 **Стек:** <Python | Go | Rust | TypeScript>  <!-- один на сервис -->
 **Брокер:** <Kafka | Redpanda | NATS>       <!-- один на систему; клиент -->
@@ -27,7 +27,7 @@
 
 ```bash
 git checkout main && git pull && git checkout -b feat/<задача>
-# код + тесты; проверка перед коммитом — <methodology-repo>/docs/guide/40-verify.md
+# код + тесты; цикл — <methodology-repo>/docs/WORKFLOW.md
 git commit -m "feat(<module>): ..."
 git push        # PR в main
 ```
@@ -41,7 +41,7 @@ git push        # PR в main
 cp .env.example .env && docker compose up --build   # брокер + этот сервис
 ```
 
-Процедура — `<methodology-repo>/docs/guide/50-deploy.md`.
+Эксплуатация — `<methodology-repo>/docs/OPERATIONS.md`.
 
 ## Лицензия
 

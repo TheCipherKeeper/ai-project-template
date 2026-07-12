@@ -5,9 +5,9 @@
 > задаётся системой
 > управления: контейнер, программа командной строки или иной вариант (`form`).
 > Способ развёртывания зависит от формы: контейнер —
-> `Dockerfile`; CLI — артефакт/сборка; `<methodology-repo>/docs/refs/DEPLOYMENT.md`).
+> `Dockerfile`; CLI — артефакт/сборка; `<methodology-repo>/docs/OPERATIONS.md`).
 > При наличии наблюдаемой поверхности сборщик контролирует её по отдельному
-> каналу (см. `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Автономный компонент*).
+> каналу (см. `<methodology-repo>/docs/ARCHITECTURE.md`).
 > `MODULE.md`/`SPEC.md` сюда **не применяются** (бэкенд-канон usecase-швов сервиса;
 > компонент параметризуется, а не вариантами использования). Заполните секции
 > под конкретный компонент.
@@ -53,16 +53,15 @@
 
 - Деплой — по форме. `form=container`: контейнер со своим `Dockerfile`, локальная
   разработка — `docker-compose.yml` (этот stub, **без брокера**). `form=cli`:
-  артефакт/сборка. Детали — `<methodology-repo>/docs/refs/DEPLOYMENT.md`, запуск —
-  `<methodology-repo>/docs/guide/50-deploy.md`.
+  артефакт/сборка. Детали — `<methodology-repo>/docs/OPERATIONS.md`.
 - Системный compose (все сервисы + цели) — в хабе, не здесь.
 - Структурное соответствие методологии проверяется контрольным рубежом
-  (`<methodology-repo>/docs/refs/VERIFICATION.md`).
+  (см. `<methodology-repo>/docs/WORKFLOW.md`).
 
 ## Ссылки
 
 - Хаб `COMPOSITION.md` — состав системы, включая автономные компоненты.
 - Хаб `adr/` — архитектурные решения программы.
-- `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Автономный компонент* —
+- `<methodology-repo>/docs/ARCHITECTURE.md` → *Топология* —
   место компонента в
   модели общения.

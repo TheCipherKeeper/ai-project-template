@@ -2,10 +2,10 @@
 # Это НЕ локальный compose сервиса (тот — в сервис-репо, брокер + один сервис).
 # Здесь — запуск всей программы вместе; образы сервисов собраны заранее.
 # build: context на клон сервис-репо — только локальная отладка, не канон
-# (канон — собранные образы; см. <methodology-repo>/docs/refs/DEPLOYMENT.md).
+# (канон — собранные образы; см. <methodology-repo>/docs/OPERATIONS.md).
 #
 # Скелет. Замени <...> под программу. Структура compose —
-# <methodology-repo>/docs/refs/DEPLOYMENT.md.
+# <methodology-repo>/docs/OPERATIONS.md.
 
 services:
   broker:

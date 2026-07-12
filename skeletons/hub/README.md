@@ -2,8 +2,7 @@
 
 Хаб микросервисной программы: системные контракты и состав. Методология —
 в `<methodology-repo>/docs/` (роутер — `INDEX.md`); топология репозиториев —
-`<methodology-repo>/docs/refs/TOPOLOGY.md`, общение микросервисов —
-`<methodology-repo>/docs/refs/COMMUNICATION.md`.
+`<methodology-repo>/docs/ARCHITECTURE.md`.
 
 ## Что в хабе
 
@@ -19,7 +18,7 @@
 <!-- Заполни по мере добавления. Каждый сервис — отдельный репо (инстанциация
      из <methodology-repo>/skeletons/service/). Один из сервисов — **gateway**
      (каноническая роль; ровно один, если есть ≥1 интерфейс; модель —
-     <methodology-repo>/docs/refs/COMMUNICATION.md → *Сервис-шлюз*). -->
+     <methodology-repo>/docs/ARCHITECTURE.md → «Коммуникация»). -->
 
 | Сервис | Репо | Роль |
 |---|---|---|

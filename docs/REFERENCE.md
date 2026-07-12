@@ -1,0 +1,63 @@
+# Краткий справочник
+
+## Статусы задачи
+
+| Статус | Значение |
+|---|---|
+| `[ ] ready` | первая такая задача доступна агентам |
+| `[x]` | merge, test deployment и smoke завершены |
+| `needs-input` | требуется продуктовое решение человека |
+| `blocked-external` | недоступна внешняя система или доступ |
+| `automation-failed` | обязательный инструмент или CI не работает |
+| `retry-exhausted` | исчерпан ограниченный цикл исправлений |
+
+Статуса `[~]` и распределённого лока нет.
+
+## Триггеры проверок
+
+| Изменение | Дополнительная проверка |
+|---|---|
+| Документация, локальный рефакторинг | rule gate |
+| Обычная функциональность | независимое review |
+| Сложные состояния или интеграция | сценарный/test lens |
+| API, event schema | compatibility + contract tests |
+| Auth, permissions, secrets, сеть, файлы, ввод | security lens + scan |
+| Persisted data | migration dry run + rollback/roll-forward |
+| Новый сервис или системная граница | architecture review; возможно ADR |
+
+## Команды стеков
+
+| Стек | Проверка | Тест | Сборка |
+|---|---|---|---|
+| Python | `ruff format --check . && ruff check . && pyright` | `pytest` | `uv build` |
+| Go | `gofmt -l . && go vet ./...` | `go test ./...` | `go build ./...` |
+| Rust | `cargo fmt --check && cargo clippy -- -D warnings` | `cargo test` | `cargo build --release` |
+| TypeScript | `pnpm lint && tsc --noEmit` | `pnpm test` | `pnpm build` |
+
+Репозиторий выбирает один стек и фиксирует точные команды в своём `AGENTS.md`.
+
+## Git
+
+- Ветка: `feat/TASK-NNNN-<slug>`.
+- Коммиты: Conventional Commits.
+- Интеграция: PR → обязательные checks → squash merge.
+- Релиз: annotated tag `vX.Y.Z`; RC только по необходимости.
+- Прямые коммиты в `main`, `dev` и release-ветки запрещены.
+
+## Задача
+
+```markdown
+### TASK-NNNN. [ ] ready — Краткое название
+
+Цель:
+Наблюдаемый результат для пользователя или системы.
+
+Готово, когда:
+- проверяемый критерий;
+- проверяемый критерий.
+
+Не входит:
+- явное ограничение или «нет».
+```
+
+Target, технический план, тесты, risk triggers и rollback квалифицирует агент.

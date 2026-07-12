@@ -2,7 +2,7 @@
 
 <!-- 1–2 предложения: что за интерфейс, какие визуализации, для какой части
      программы. Системный контекст — в хабе COMPOSITION.md; топология —
-     в <methodology-repo>/docs/refs/TOPOLOGY.md. -->
+     в <methodology-repo>/docs/ARCHITECTURE.md. -->
 
 **Стек:** React + TypeScript (Vite)
 **Хаб:** <hub-repo>                          <!-- COMPOSITION/CONVENTIONS/системный compose -->
@@ -27,7 +27,7 @@
 
 ```bash
 pnpm dev                    # локальная разработка (Vite dev-сервер; без брокера)
-# код + тесты; проверка перед коммитом — <methodology-repo>/docs/guide/40-verify.md
+# код + тесты; цикл — <methodology-repo>/docs/WORKFLOW.md
 git commit -m "feat(ui): ..." && git push   # PR в main
 ```
 
@@ -36,7 +36,7 @@ git commit -m "feat(ui): ..." && git push   # PR в main
 ## Деплой
 
 Статика: `pnpm build` → `dist/`, раздаётся nginx/CDN. Детали —
-`<methodology-repo>/docs/refs/DEPLOYMENT.md` → *Интерфейс*.
+`<methodology-repo>/docs/OPERATIONS.md`.
 
 ## Лицензия
 

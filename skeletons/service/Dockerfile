@@ -1,7 +1,7 @@
 # Dockerfile сервиса. Скелет — замени под выбранный стек.
-# Сборка из команд `build` стека (см. <methodology-repo>/docs/refs/STACKS.md).
+# Сборка из команд стека (см. <methodology-repo>/docs/REFERENCE.md).
 # Требования: мультистадийная сборка, тонкий runtime-образ, не от root,
-# healthcheck если есть. Детали — <methodology-repo>/docs/refs/DEPLOYMENT.md.
+# healthcheck если есть. Детали — <methodology-repo>/docs/OPERATIONS.md.
 
 # ---- stage: build ----
 # Пример (подставь свой toolchain):
