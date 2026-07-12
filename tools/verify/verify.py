@@ -14,6 +14,9 @@ from urllib.parse import unquote
 
 
 POLICY_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(POLICY_ROOT / "tools" / "tasks"))
+from sync import BacklogError, serialized, task_records  # noqa: E402
+
 REQUIRED_BY_TYPE = {
     "methodology": (
         "AGENTS.md",
@@ -1052,23 +1055,22 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
             root / ".tasks" if kind == "hub" else root / "skeletons/hub/.tasks",
             "task.schema.json",
         )
-        parsed_headings = {
-            match.group(1): "done" if "[x]" in heading else match.group(2)
-            for heading in re.findall(r"^### TASK-.*$", backlog_text, re.MULTILINE)
-            if (match := TASK_PATTERN.fullmatch(heading))
-        }
-        for task_id, status in parsed_headings.items():
+        try:
+            expected_tasks = task_records(backlog_text)
+        except BacklogError as error:
+            expected_tasks = {}
+            task_record_errors.append(str(error))
+        task_directory = root / ".tasks" if kind == "hub" else root / "skeletons/hub/.tasks"
+        for task_id, expected in expected_tasks.items():
             record = tasks.get(task_id)
             if record is None:
                 task_record_errors.append(f"{task_id}: отсутствует машинная запись")
-            elif record.get("status") != status:
-                task_record_errors.append(
-                    f"{task_id}: status={record.get('status')} не совпадает с backlog={status}"
-                )
-        for task_id in tasks.keys() - parsed_headings.keys():
+            elif record != expected or (task_directory / f"{task_id}.json").read_text(encoding="utf-8") != serialized(expected):
+                task_record_errors.append(f"{task_id}: запись не сгенерирована из BACKLOG.md")
+        for task_id in tasks.keys() - expected_tasks.keys():
             task_record_errors.append(f"{task_id}: нет соответствующей задачи в BACKLOG.md")
         checks.append(result("VER-012", not task_record_errors,
-            "Машинные задачи валидны и соответствуют BACKLOG.md" if not task_record_errors
+            "Машинные задачи сгенерированы из BACKLOG.md" if not task_record_errors
             else "Ошибки машинных задач: " + "; ".join(task_record_errors), ".tasks/*.json"))
 
         evidence, evidence_errors = load_records(

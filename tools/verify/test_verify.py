@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 
 from verify import markdown_files, non_mermaid_diagrams, run, validate_json
+from sync import sync
 
 
 def make_hub(tmp_path: Path, methodology_ref: str = "v1.0.0") -> None:
@@ -581,6 +582,30 @@ def test_hub_requires_machine_task_matching_backlog(tmp_path: Path) -> None:
     report = run(tmp_path)
 
     assert any(check["id"] == "VER-012" and check["status"] == "failed" for check in report["checks"])
+
+
+def test_hub_rejects_machine_task_not_generated_from_backlog(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [ ] ready — Задача\n\n"
+        "Целевой репозиторий: hub\nРиск: low\nАвтономность: auto-test-deploy\n"
+        "Триггеры:\n- нет\n\nЦель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n",
+        encoding="utf-8",
+    )
+    sync(tmp_path)
+    task_path = tmp_path / ".tasks" / "TASK-0001.json"
+    task = json.loads(task_path.read_text(encoding="utf-8"))
+    task["target"] = "other"
+    task_path.write_text(json.dumps(task, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    report = run(tmp_path)
+
+    assert any(
+        check["id"] == "VER-012"
+        and check["status"] == "failed"
+        and "не сгенерирована" in check["message"]
+        for check in report["checks"]
+    )
 
 
 def test_done_task_requires_evidence(tmp_path: Path) -> None:
