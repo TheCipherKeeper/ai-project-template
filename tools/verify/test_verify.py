@@ -68,3 +68,80 @@ def test_hub_rejects_malformed_task_heading(tmp_path: Path) -> None:
         check["id"] == "VER-006" and check["status"] == "failed"
         for check in report["checks"]
     )
+
+
+def test_config_rejects_unknown_fields(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    (tmp_path / ".methodology.yml").write_text(
+        "schema_version: 1\nrepository_type: hub\nmethodology_ref: v1.0.0\nextra: value\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [ ] ready — Задача\n\nЦель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n",
+        encoding="utf-8",
+    )
+
+    report = run(tmp_path)
+
+    assert any(
+        check["id"] == "VER-001" and check["status"] == "failed"
+        for check in report["checks"]
+    )
+
+
+def test_ci_ref_must_match_pinned_ref(tmp_path: Path) -> None:
+    make_hub(tmp_path, methodology_ref="v1.0.0")
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [ ] ready — Задача\n\nЦель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n",
+        encoding="utf-8",
+    )
+
+    report = run(tmp_path, ci_methodology_ref="v2.0.0")
+
+    assert any(
+        check["id"] == "VER-003" and check["status"] == "failed"
+        for check in report["checks"]
+    )
+
+
+def test_backlog_accepts_diagnostic_status_and_requires_fields(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [ ] needs-input — Нужен выбор\n\nДиагностика: выбор человека.\n",
+        encoding="utf-8",
+    )
+
+    report = run(tmp_path)
+
+    assert any(
+        check["id"] == "VER-006"
+        and check["status"] == "failed"
+        and "отсутствует поле" in check["message"]
+        for check in report["checks"]
+    )
+
+
+def test_methodology_rejects_powershell_scripts(tmp_path: Path) -> None:
+    (tmp_path / ".methodology.yml").write_text(
+        "schema_version: 1\nrepository_type: methodology\nmethodology_ref: self\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tool.ps1").write_text("Write-Output bad\n", encoding="utf-8")
+
+    report = run(tmp_path)
+
+    assert any(
+        check["id"] == "VER-007" and check["status"] == "failed"
+        for check in report["checks"]
+    )
+
+
+def test_service_does_not_require_local_backlog(tmp_path: Path) -> None:
+    (tmp_path / ".methodology.yml").write_text(
+        "schema_version: 1\nrepository_type: service\nmethodology_ref: v1.0.0\n",
+        encoding="utf-8",
+    )
+
+    report = run(tmp_path)
+
+    assert not any(check["id"] in {"VER-005", "VER-006"} for check in report["checks"])

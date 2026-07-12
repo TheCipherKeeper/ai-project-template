@@ -1,8 +1,8 @@
 # Конвенции общения микросервисов
 
 Кросс-сервисный контракт: формат сообщений (event envelope) и общие правила.
-Сервисы потребляют текущий `CONVENTIONS` (без версионирования — см.
-`<methodology-repo>/docs/ARCHITECTURE.md`).
+Сервисы потребляют закреплённую совместимую версию `CONVENTIONS`; изменения
+контрактов следуют policy из `<methodology-repo>/docs/ARCHITECTURE.md`.
 
 > Скелет. Заполни под программу. Модель общения —
 > `<methodology-repo>/docs/ARCHITECTURE.md`.
