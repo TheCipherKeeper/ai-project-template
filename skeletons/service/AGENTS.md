@@ -15,7 +15,7 @@
   только через брокер.
 - Обновляй код, тесты, `docs/ARCHITECTURE.md` и применимые спеки вместе.
 - Публичные API/events имеют versioned schema и contract tests.
-- Секреты, `.env` и lock-файлы не меняй без разрешения.
+- Секреты, `.env` и файлы блокировки зависимостей не меняй без разрешения.
 - ADR хранится только в `<hub>/adr/` и нужен для труднообратимого системного
   решения.
 - Placeholder/TODO явно помечается и не считается готовым результатом.
@@ -31,11 +31,11 @@
 | Rust | `cargo fmt --check && cargo clippy -- -D warnings` | `cargo test` | `cargo build --release` |
 | TypeScript | `pnpm lint && tsc --noEmit` | `pnpm test` | `pnpm build` |
 
-Перед merge обязателен verifier методологии, команды выбранного стека и
+Перед слиянием обязательны средство проверки методологии, команды выбранного стека и
 применимые проверки из `<methodology-repo>/docs/REFERENCE.md`.
 
 ## Git
 
-Conventional Commits со scope модуля или `deploy`/`docs`; squash merge после
-зелёного гейта. Test deployment идёт по commit SHA. Тег выпуска создаётся только
+Формат Conventional Commits с областью модуля или `deploy`/`docs`; слияние со свёрткой коммитов после
+успешной обязательной проверки. Развёртывание в тестовой среде идёт по SHA коммита. Тег выпуска создаётся только
 отдельной задачей.
