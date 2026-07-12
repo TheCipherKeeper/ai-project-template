@@ -115,7 +115,7 @@ gitGraph
   (`<methodology-repo>/docs/refs/COMMUNICATION.md`). **Browser-facing
   presentation-эндпоинты (HTTP/WS) для интерфейсов — только у gateway-сервиса**
   и документируются в `docs/ARCHITECTURE.md` → *Доверительная граница* (модель —
-  `<methodology-repo>/docs/refs/COMMUNICATION.md` → *gateway-сервис*). Обычные
+  `<methodology-repo>/docs/refs/COMMUNICATION.md` → *Сервис-шлюз*). Обычные
   сервисы их **не** держат — клиентский край через топики, потребляемые gateway.
 - Создавать ADR вне хаба (`<hub>/adr/`; процедура — `guide/60`).
 - Отклоняться от usecase-структуры модуля
