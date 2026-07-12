@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import sys
+import tomllib
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
@@ -66,7 +68,11 @@ REQUIRED_BY_TYPE = {
 SUPPORTED_TYPES = frozenset(REQUIRED_BY_TYPE)
 EXACT_REF_PATTERN = re.compile(r"^(?:[0-9a-f]{7,40}|v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?)$")
 CONFIG_LINE_PATTERN = re.compile(r"^([a-z_]+):\s*(\S+)\s*$")
-CONFIG_KEYS = frozenset({"schema_version", "repository_type", "methodology_ref"})
+BASE_CONFIG_KEYS = frozenset({"schema_version", "repository_type", "methodology_ref"})
+SERVICE_CONFIG_KEYS = frozenset({"service_name", "service_language", "service_modules"})
+CONFIG_KEYS = BASE_CONFIG_KEYS | SERVICE_CONFIG_KEYS
+SERVICE_LANGUAGES = frozenset({"python", "go", "rust"})
+SERVICE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 SKELETON_REQUIRED = {
     kind: required for kind, required in REQUIRED_BY_TYPE.items() if kind != "methodology"
 }
@@ -137,9 +143,17 @@ def methodology_config(root: Path) -> tuple[dict[str, str], list[str]]:
             errors.append(f"строка {number}: повтор поля {key}")
         else:
             values[key] = value
-    missing = CONFIG_KEYS - values.keys()
+    missing = BASE_CONFIG_KEYS - values.keys()
     if missing:
         errors.append("нет полей: " + ", ".join(sorted(missing)))
+    kind = values.get("repository_type")
+    service_fields = SERVICE_CONFIG_KEYS & values.keys()
+    if kind == "service":
+        missing_service = SERVICE_CONFIG_KEYS - values.keys()
+        if missing_service:
+            errors.append("для service нет полей: " + ", ".join(sorted(missing_service)))
+    elif service_fields:
+        errors.append("поля service допустимы только для repository_type=service")
     return values, errors
 
 
@@ -385,6 +399,488 @@ def skeleton_errors(root: Path) -> list[str]:
             errors.append(f"skeletons/{directory}/.methodology.yml: неверные schema_version/repository_type")
         if config.get("methodology_ref") != "<tag-or-commit>":
             errors.append(f"skeletons/{directory}/.methodology.yml: требуется <tag-or-commit>")
+        if kind == "service" and (
+            config.get("service_name") != "<service>"
+            or config.get("service_language") != "<python|go|rust>"
+            or config.get("service_modules") != "<module>[,<module>...]"
+        ):
+            errors.append(f"skeletons/{directory}/.methodology.yml: неверные поля service")
+    return errors
+
+
+SERVICE_LAYER_PATHS = (
+    ("domain",),
+    ("application",),
+    ("ports", "inbound"),
+    ("ports", "outbound"),
+    ("adapters", "inbound"),
+    ("adapters", "outbound"),
+)
+ALLOWED_LAYER_DEPENDENCIES = {
+    "domain": {"domain"},
+    "ports/inbound": {"domain", "ports/inbound"},
+    "ports/outbound": {"domain", "ports/outbound"},
+    "application": {"domain", "ports/inbound", "ports/outbound", "application"},
+    "adapters/inbound": {"domain", "ports/inbound", "adapters/inbound"},
+    "adapters/outbound": {"domain", "ports/outbound", "adapters/outbound"},
+}
+
+
+def service_modules(config: dict[str, str]) -> tuple[list[str], list[str]]:
+    raw = config.get("service_modules", "")
+    modules = raw.split(",") if raw else []
+    errors = []
+    if not modules or any(not SERVICE_NAME_PATTERN.fullmatch(module) for module in modules):
+        errors.append("service_modules: требуется список уникальных имён через запятую без пробелов")
+    if len(modules) != len(set(modules)):
+        errors.append("service_modules: имена модулей должны быть уникальны")
+    return modules, errors
+
+
+def documented_service_table(root: Path) -> tuple[list[str], list[list[str]]]:
+    architecture = root / "docs" / "ARCHITECTURE.md"
+    if not architecture.is_file():
+        return [], []
+    match = re.search(
+        r"(?ms)^## Модули\s+(.*?)(?=^##\s|\Z)",
+        architecture.read_text(encoding="utf-8"),
+    )
+    if not match:
+        return [], []
+    rows = []
+    for line in match.group(1).splitlines():
+        if not line.startswith("|") or re.fullmatch(r"[|:\-\s]+", line):
+            continue
+        rows.append([cell.strip() for cell in line.strip("|").split("|")])
+    return (rows[0], rows[1:]) if rows else ([], [])
+
+
+def canonical_service_paths(root: Path, config: dict[str, str], module: str) -> tuple[Path, Path]:
+    language = config.get("service_language")
+    service_name = config.get("service_name", "")
+    if language == "python":
+        return root / "src" / service_name / module, root / "src" / service_name / "bootstrap.py"
+    if language == "go":
+        return root / "internal" / module, root / "cmd" / service_name / "main.go"
+    return root / "src" / module, root / "src" / "main.rs"
+
+
+def layer_from_parts(parts: tuple[str, ...]) -> str | None:
+    if not parts:
+        return None
+    if parts[0] in {"domain", "application"}:
+        return parts[0]
+    if len(parts) >= 2 and parts[0] in {"ports", "adapters"} and parts[1] in {"inbound", "outbound"}:
+        return "/".join(parts[:2])
+    return None
+
+
+def dependency_error(source_module: str, source_layer: str, target_module: str, target_layer: str) -> str | None:
+    if source_module != target_module:
+        if target_layer != "ports/inbound":
+            return f"{source_module}/{source_layer} обращается к внутреннему слою {target_module}/{target_layer}"
+        return None
+    if target_layer not in ALLOWED_LAYER_DEPENDENCIES[source_layer]:
+        return f"{source_module}/{source_layer} зависит от запрещённого слоя {target_layer}"
+    return None
+
+
+def python_import_errors(root: Path, service_name: str, modules: list[str]) -> list[str]:
+    errors = []
+    package_root = root / "src" / service_name
+    for module in modules:
+        module_root = package_root / module
+        for source in module_root.rglob("*.py") if module_root.is_dir() else ():
+            relative = source.relative_to(package_root)
+            source_layer = layer_from_parts(relative.parts[1:-1])
+            if source_layer is None:
+                allowed_init = relative.as_posix() in {
+                    f"{module}/__init__.py",
+                    f"{module}/ports/__init__.py",
+                    f"{module}/adapters/__init__.py",
+                }
+                if allowed_init:
+                    try:
+                        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+                        if all(
+                            isinstance(node, ast.Expr)
+                            and isinstance(node.value, ast.Constant)
+                            and isinstance(node.value.value, str)
+                            for node in tree.body
+                        ):
+                            continue
+                    except (SyntaxError, UnicodeDecodeError):
+                        pass
+                errors.append(f"{source.relative_to(root)}: Python-код вне канонического слоя")
+                continue
+            try:
+                tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+            except (SyntaxError, UnicodeDecodeError) as error:
+                errors.append(f"{source.relative_to(root)}: невозможно разобрать imports: {error}")
+                continue
+            package = [service_name, *relative.parts[:-1]]
+            for node in ast.walk(tree):
+                targets = []
+                if isinstance(node, ast.Import):
+                    targets = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    if node.level:
+                        base = package[: len(package) - node.level + 1]
+                        target = ".".join([*base, *(node.module or "").split(".")])
+                    else:
+                        target = node.module or ""
+                    targets = [target, *(f"{target}.{alias.name}" for alias in node.names if alias.name != "*")]
+                for target in targets:
+                    parts = tuple(part for part in target.split(".") if part)
+                    if not source_layer.startswith("adapters/") and parts and parts[0] != service_name and parts[0] not in sys.stdlib_module_names:
+                        errors.append(f"{source.relative_to(root)}:{node.lineno}: внутренний слой импортирует внешнюю библиотеку {parts[0]}")
+                    if len(parts) < 3 or parts[0] != service_name or parts[1] not in modules:
+                        continue
+                    target_layer = layer_from_parts(parts[2:])
+                    if target_layer and (error := dependency_error(module, source_layer, parts[1], target_layer)):
+                        errors.append(f"{source.relative_to(root)}:{node.lineno}: {error}")
+    return errors
+
+
+def go_import_errors(root: Path, modules: list[str]) -> list[str]:
+    errors = []
+    go_mod = root / "go.mod"
+    module_path = ""
+    if go_mod.is_file():
+        match = re.search(r"(?m)^module\s+(\S+)", go_mod.read_text(encoding="utf-8"))
+        module_path = match.group(1) if match else ""
+    if not module_path:
+        return ["go.mod: отсутствует module path"]
+    go_mod_text = go_mod.read_text(encoding="utf-8")
+    required_modules = set(re.findall(
+        r"(?m)^\s*(?:require\s+)?([A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+)\s+v\S+",
+        go_mod_text,
+    ))
+    for module in modules:
+        module_root = root / "internal" / module
+        for source in module_root.rglob("*.go") if module_root.is_dir() else ():
+            relative = source.relative_to(module_root)
+            source_layer = layer_from_parts(relative.parts[:-1])
+            if source_layer is None:
+                errors.append(f"{source.relative_to(root)}: Go-код вне канонического слоя")
+                continue
+            text = source.read_text(encoding="utf-8")
+            text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
+            imports = re.findall(r'(?m)^\s*import\s+(?:[\w.]+\s+)?["`]([^"`\n]+)["`]', text)
+            for block in re.findall(r"(?ms)^\s*import\s*\((.*?)\)", text):
+                imports.extend(re.findall(r'["`]([^"`\n]+)["`]', block))
+            for target in imports:
+                external = "." in target.split("/", 1)[0] or any(
+                    target == dependency or target.startswith(f"{dependency}/")
+                    for dependency in required_modules
+                )
+                if not source_layer.startswith("adapters/") and external:
+                    errors.append(f"{source.relative_to(root)}: внутренний слой импортирует внешнюю библиотеку {target}")
+                prefix = f"{module_path}/internal/"
+                if not target.startswith(prefix):
+                    continue
+                parts = tuple(target.removeprefix(prefix).split("/"))
+                if len(parts) < 2 or parts[0] not in modules:
+                    continue
+                target_layer = layer_from_parts(parts[1:])
+                if target_layer and (error := dependency_error(module, source_layer, parts[0], target_layer)):
+                    errors.append(f"{source.relative_to(root)}: {error}")
+    return errors
+
+
+def rust_import_errors(root: Path, modules: list[str]) -> list[str]:
+    errors = []
+    manifest = root / "Cargo.toml"
+    if not manifest.is_file():
+        return ["Cargo.toml: файл обязателен для Rust-сервиса"]
+    try:
+        cargo = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
+        return [f"Cargo.toml: невозможно разобрать зависимости: {error}"]
+    dependencies = {
+        name.replace("-", "_")
+        for section in ("dependencies", "dev-dependencies", "build-dependencies")
+        for name in cargo.get(section, {})
+    }
+    for target in cargo.get("target", {}).values():
+        if isinstance(target, dict):
+            dependencies.update(
+                name.replace("-", "_")
+                for section in ("dependencies", "dev-dependencies", "build-dependencies")
+                for name in target.get(section, {})
+            )
+    for module in modules:
+        module_root = root / "src" / module
+        for source in module_root.rglob("*.rs") if module_root.is_dir() else ():
+            relative = source.relative_to(module_root)
+            source_layer = layer_from_parts(relative.parts[:-1])
+            if source_layer is None:
+                if relative.as_posix() in {"mod.rs", "ports/mod.rs", "adapters/mod.rs"}:
+                    continue
+                errors.append(f"{source.relative_to(root)}: Rust-код вне канонического слоя")
+                continue
+            text = source.read_text(encoding="utf-8")
+            imports = []
+            for match in re.finditer(r"(?m)^\s*(?:pub\s+)?use\s+([^;]+);", text):
+                expression = match.group(1).strip()
+                line_number = text.count("\n", 0, match.start()) + 1
+                if "{" in expression:
+                    prefix, body = expression.split("{", 1)
+                    if "{" in body or not body.endswith("}"):
+                        errors.append(f"{source.relative_to(root)}:{line_number}: вложенный групповой use запрещён")
+                        continue
+                    prefix = prefix.rstrip(":")
+                    imports.extend(
+                        (f"{prefix}::{item.strip()}" if prefix else item.strip(), line_number)
+                        for item in body[:-1].split(",")
+                        if item.strip() and item.strip() != "self"
+                    )
+                else:
+                    imports.append((expression.split(" as ", 1)[0].strip(), line_number))
+            for target, line_number in imports:
+                first = target.split("::", 1)[0]
+                if not source_layer.startswith("adapters/") and first in dependencies:
+                    errors.append(f"{source.relative_to(root)}:{line_number}: внутренний слой импортирует внешний crate {first}")
+                tokens = target.split("::")
+                if tokens[0] == "crate":
+                    parts = tuple(tokens[1:])
+                elif tokens[0] in {"self", "super"}:
+                    resolved = [module, *relative.parts[:-1]]
+                    while tokens and tokens[0] in {"self", "super"}:
+                        token = tokens.pop(0)
+                        if token == "super" and resolved:
+                            resolved.pop()
+                    parts = tuple([*resolved, *tokens])
+                else:
+                    parts = ()
+                if len(parts) < 2 or parts[0] not in modules:
+                    continue
+                target_layer = layer_from_parts(parts[1:])
+                if target_layer and (error := dependency_error(module, source_layer, parts[0], target_layer)):
+                    errors.append(f"{source.relative_to(root)}:{line_number}: {error}")
+            for match in re.finditer(r"crate::([a-z][a-z0-9_]*)::([a-z][a-z0-9_]*(?:::[a-z][a-z0-9_]*)?)", text):
+                target_module, raw_layer = match.groups()
+                if target_module not in modules:
+                    continue
+                target_layer = layer_from_parts(tuple(raw_layer.split("::")))
+                line_number = text.count("\n", 0, match.start()) + 1
+                if target_layer and (error := dependency_error(module, source_layer, target_module, target_layer)):
+                    detail = f"{source.relative_to(root)}:{line_number}: {error}"
+                    if detail not in errors:
+                        errors.append(detail)
+            for match in re.finditer(r"(?m)^\s*extern\s+crate\s+([a-z_][a-z0-9_]*)", text):
+                crate_name = match.group(1)
+                if not source_layer.startswith("adapters/") and crate_name in dependencies:
+                    line_number = text.count("\n", 0, match.start()) + 1
+                    errors.append(f"{source.relative_to(root)}:{line_number}: внутренний слой импортирует внешний crate {crate_name}")
+            if not source_layer.startswith("adapters/"):
+                for match in re.finditer(r"(?<![\w:])([a-z_][a-z0-9_]*)::", text):
+                    crate_name = match.group(1)
+                    if crate_name in dependencies:
+                        line_number = text.count("\n", 0, match.start()) + 1
+                        detail = f"{source.relative_to(root)}:{line_number}: внутренний слой использует внешний crate {crate_name}"
+                        if detail not in errors:
+                            errors.append(detail)
+    return errors
+
+
+def composition_root_errors(root: Path, language: str, path: Path) -> list[str]:
+    if not path.is_file():
+        return []
+    relative = path.relative_to(root)
+    text = path.read_text(encoding="utf-8")
+    if language == "python":
+        try:
+            tree = ast.parse(text, filename=str(path))
+        except SyntaxError as error:
+            return [f"{relative}: невозможно разобрать composition root: {error}"]
+        allowed = (ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign)
+        assignments = [node for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))]
+        def wiring_value(value: ast.expr | None) -> bool:
+            if isinstance(value, (ast.Name, ast.Attribute)):
+                return True
+            if not isinstance(value, ast.Call):
+                return False
+            function = value.func.id if isinstance(value.func, ast.Name) else value.func.attr if isinstance(value.func, ast.Attribute) else ""
+            return function[:1].isupper() or function.startswith(("build", "create", "make", "new"))
+        expressions = [node for node in tree.body if isinstance(node, ast.Expr)]
+        terminal_calls = [
+            node for node in expressions
+            if isinstance(node.value, ast.Call)
+            and (
+                isinstance(node.value.func, ast.Name) and node.value.func.id in {"run", "serve", "start"}
+                or isinstance(node.value.func, ast.Attribute) and node.value.func.attr in {"run", "serve", "start"}
+            )
+        ]
+        docstrings = [node for node in expressions if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)]
+        if (
+            any(not isinstance(node, allowed + (ast.Expr,)) for node in tree.body)
+            or any(not wiring_value(node.value) for node in assignments)
+            or len(terminal_calls) > 1
+            or len(expressions) != len(terminal_calls) + len(docstrings)
+        ):
+            return [f"{relative}: composition root содержит определения или управляющую логику"]
+    elif language == "go":
+        clean = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
+        functions = re.findall(r"(?m)^\s*func\s+([A-Za-z_]\w*)\s*\(", clean)
+        forbidden = re.search(r"(?m)^\s*(?:type|const|var)\s+|^\s*func\s*\(", clean)
+        control = re.search(r"\b(?:if|for|switch|select|go|defer|range)\b", clean)
+        calls = re.findall(r"\b(?:[A-Za-z_]\w*\.)?([A-Za-z_]\w*)\s*\(", clean)
+        allowed_calls = {"main", "Run", "Start", "Serve", "Background", "TODO"}
+        invalid_calls = [call for call in calls if call not in allowed_calls and not call.startswith("New")]
+        if functions != ["main"] or forbidden or control or invalid_calls:
+            return [f"{relative}: composition root должен содержать только func main"]
+    else:
+        functions = re.findall(r"(?m)^\s*(?:pub\s+)?fn\s+([A-Za-z_]\w*)\s*\(", text)
+        forbidden = re.search(r"(?m)^\s*(?:struct|enum|trait|impl|const|static|type)\b", text)
+        control = re.search(r"\b(?:if|for|while|loop|match|async|await)\b", text)
+        calls = re.findall(r"\b([a-zA-Z_]\w*)\s*!?\(", text)
+        allowed_calls = {"main", "new", "build", "from", "default", "run", "start", "serve"}
+        if functions != ["main"] or forbidden or control or any(call not in allowed_calls for call in calls):
+            return [f"{relative}: composition root должен содержать только fn main"]
+    return []
+
+
+def rust_module_manifest_errors(root: Path, path: Path, expected: set[str]) -> list[str]:
+    if not path.is_file():
+        return [f"отсутствует {path.relative_to(root)}"]
+    text = re.sub(r"/\*.*?\*/|//[^\n]*", "", path.read_text(encoding="utf-8"), flags=re.DOTALL)
+    declaration_list = re.findall(r"(?m)^\s*(?:pub\s+)?mod\s+([a-z][a-z0-9_]*)\s*;\s*$", text)
+    declarations = set(declaration_list)
+    residue = re.sub(r"(?m)^\s*(?:pub\s+)?mod\s+[a-z][a-z0-9_]*\s*;\s*$", "", text).strip()
+    if declarations != expected or len(declaration_list) != len(declarations) or residue:
+        return [f"{path.relative_to(root)}: разрешены только объявления {sorted(expected)}"]
+    return []
+
+
+def source_outside_canon(root: Path, language: str, name: str, modules: list[str]) -> list[str]:
+    suffix = {"python": ".py", "go": ".go", "rust": ".rs"}[language]
+    ignored = {".git", ".venv", "build", "dist", "node_modules", "target", "vendor", "tools", "tests"}
+    errors = []
+    for source in root.rglob(f"*{suffix}"):
+        relative = source.relative_to(root)
+        if ignored.intersection(relative.parts):
+            continue
+        if language == "python":
+            allowed_root = Path("src") / name
+            allowed = relative.is_relative_to(allowed_root)
+        elif language == "go":
+            allowed = (
+                relative.parts[:1] == ("internal",) and len(relative.parts) > 1 and relative.parts[1] in modules
+            ) or relative == Path("cmd") / name / "main.go"
+        else:
+            allowed = (
+                relative.parts[:1] == ("src",) and len(relative.parts) > 1 and relative.parts[1] in modules
+            ) or relative == Path("src/main.rs")
+        if not allowed:
+            errors.append(f"{relative}: исходник вне канонических корней")
+    return errors
+
+
+def service_architecture_errors(root: Path, config: dict[str, str]) -> list[str]:
+    errors = []
+    name = config.get("service_name", "")
+    language = config.get("service_language", "")
+    modules, module_errors = service_modules(config)
+    errors.extend(module_errors)
+    if not SERVICE_NAME_PATTERN.fullmatch(name):
+        errors.append("service_name: требуется lower_snake_case")
+    if language not in SERVICE_LANGUAGES:
+        errors.append("service_language: допустимы только python, go, rust")
+    if errors:
+        return errors
+    expected_header = [
+        "Модуль", "Ответственность", "Спека", "Язык", "Канонический корень", "Проверка границ"
+    ]
+    header, rows = documented_service_table(root)
+    documented_modules = [row[0].strip("`") for row in rows if row]
+    if header != expected_header or any(len(row) != len(expected_header) for row in rows):
+        errors.append("docs/ARCHITECTURE.md: таблица модулей не соответствует каноническим столбцам")
+    if documented_modules != modules:
+        errors.append(
+            "docs/ARCHITECTURE.md: порядок модулей "
+            f"{documented_modules} не совпадает с service_modules {modules}"
+        )
+    for row, module in zip(rows, documented_modules):
+        if len(row) != len(expected_header) or module not in modules:
+            continue
+        expected_root = canonical_service_paths(root, config, module)[0].relative_to(root).as_posix()
+        values = [cell.strip("`") for cell in row]
+        if values[3] != language or values[4].rstrip("/") != expected_root:
+            errors.append(f"docs/ARCHITECTURE.md: неверные язык или корень модуля {module}")
+        expected_spec = f"docs/specs/{module}.md"
+        if values[2] != expected_spec or not (root / expected_spec).is_file():
+            errors.append(f"docs/ARCHITECTURE.md: неверная или отсутствующая спека модуля {module}")
+        if values[5] != "VER-015":
+            errors.append(f"docs/ARCHITECTURE.md: модуль {module} должен проверяться VER-015")
+        if any(not value or value == "TODO" for value in values[1:]):
+            errors.append(f"docs/ARCHITECTURE.md: не заполнены поля модуля {module}")
+    composition_roots = set()
+    for module in modules:
+        module_root, composition_root = canonical_service_paths(root, config, module)
+        composition_roots.add(composition_root)
+        for layer in SERVICE_LAYER_PATHS:
+            directory = module_root.joinpath(*layer)
+            if not directory.is_dir():
+                errors.append(f"отсутствует каталог {directory.relative_to(root)}")
+            elif language == "rust" and not (directory / "mod.rs").is_file():
+                errors.append(f"отсутствует {directory.relative_to(root)}/mod.rs")
+        if language == "rust":
+            errors.extend(rust_module_manifest_errors(
+                root, module_root / "mod.rs", {"domain", "application", "ports", "adapters"}
+            ))
+            errors.extend(rust_module_manifest_errors(
+                root, module_root / "ports" / "mod.rs", {"inbound", "outbound"}
+            ))
+            errors.extend(rust_module_manifest_errors(
+                root, module_root / "adapters" / "mod.rs", {"inbound", "outbound"}
+            ))
+    for composition_root in composition_roots:
+        if not composition_root.is_file():
+            errors.append(f"отсутствует composition root {composition_root.relative_to(root)}")
+        else:
+            errors.extend(composition_root_errors(root, language, composition_root))
+    for test_kind in ("unit", "integration", "contract"):
+        if not (root / "tests" / test_kind).is_dir():
+            errors.append(f"отсутствует каталог tests/{test_kind}")
+    if language == "python":
+        source_root = root / "src" / name
+        package_init = source_root / "__init__.py"
+        if package_init.is_file():
+            try:
+                init_tree = ast.parse(package_init.read_text(encoding="utf-8"), filename=str(package_init))
+                if any(
+                    not isinstance(node, ast.Expr)
+                    or not isinstance(node.value, ast.Constant)
+                    or not isinstance(node.value.value, str)
+                    for node in init_tree.body
+                ):
+                    errors.append(f"{package_init.relative_to(root)}: разрешена только строка документации")
+            except (SyntaxError, UnicodeDecodeError) as error:
+                errors.append(f"{package_init.relative_to(root)}: невозможно разобрать: {error}")
+        for source in source_root.rglob("*.py") if source_root.is_dir() else ():
+            relative = source.relative_to(source_root)
+            if relative.parts[0] not in modules and relative.as_posix() not in {"__init__.py", "bootstrap.py"}:
+                errors.append(f"{source.relative_to(root)}: исходник вне объявленного модуля")
+        errors.extend(python_import_errors(root, name, modules))
+    elif language == "go":
+        internal = root / "internal"
+        for source in internal.rglob("*.go") if internal.is_dir() else ():
+            if source.relative_to(internal).parts[0] not in modules:
+                errors.append(f"{source.relative_to(root)}: исходник вне объявленного модуля")
+        command_root = root / "cmd" / name
+        for source in command_root.rglob("*.go") if command_root.is_dir() else ():
+            if source.name != "main.go":
+                errors.append(f"{source.relative_to(root)}: вне composition root")
+        errors.extend(go_import_errors(root, modules))
+    else:
+        source_root = root / "src"
+        for source in source_root.rglob("*.rs") if source_root.is_dir() else ():
+            relative = source.relative_to(source_root)
+            if relative.parts[0] not in modules and relative.as_posix() != "main.rs":
+                errors.append(f"{source.relative_to(root)}: исходник вне объявленного модуля")
+        errors.extend(rust_import_errors(root, modules))
+    errors.extend(source_outside_canon(root, language, name, modules))
     return errors
 
 
@@ -522,6 +1018,19 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
                 if not structural_errors
                 else "Ошибки скелетов: " + "; ".join(structural_errors),
                 "skeletons/",
+            )
+        )
+
+    if kind == "service":
+        architecture_errors = service_architecture_errors(root, config)
+        checks.append(
+            result(
+                "VER-015",
+                not architecture_errors,
+                "Структура и зависимости сервиса соответствуют архитектурному канону"
+                if not architecture_errors
+                else "Нарушения архитектуры сервиса: " + "; ".join(architecture_errors),
+                "src/, internal/, cmd/, tests/",
             )
         )
 
