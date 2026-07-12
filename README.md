@@ -69,7 +69,8 @@
 
 ## Разработка (в репозитории методологии)
 
-Перед коммитом выполни `./tools/verify/verify.ps1 -Report verification.json`.
+Перед коммитом выполни
+`uv run tools/verify/verify.py --report verification.json`.
 
 ```bash
 git checkout main && git pull && git checkout -b feat/<задача>

@@ -87,8 +87,8 @@ gitGraph
 
 Исполняемый локальный гейт запускается той же командой, что CI:
 
-```powershell
-./tools/verify/verify.ps1 -Report verification.json
+```bash
+uv run tools/verify/verify.py --report verification.json
 ```
 
 Все репозитории применяют последнюю версию методологии. `.methodology.yml`
@@ -107,6 +107,8 @@ gitGraph
   фаз и без дублирования.
 - Редактировать `skeletons/service/`, `skeletons/hub/`, `skeletons/interface/` и
   `skeletons/stub/` — синхронизировать со актуальной методологией.
+- Создавать репозиторные скрипты и служебные инструменты только на Python;
+  запускать их через `uv run`.
 - Создавать feature-ветки, PR в `main`, теги `vX.Y.Z`.
 - Заводить ADR-шаблоны в `skeletons/hub/adr/` (ADR — в хабе, единый дом программы).
 
@@ -124,6 +126,8 @@ gitGraph
   `skeletons/hub/`.
 - Хранить в `skeletons/` код приложения или lock-файлы — только стартовые
   файлы и шаблоны.
+- Создавать репозиторные скрипты и обвязки на shell или PowerShell (`*.sh`,
+  `*.ps1`); для них используется Python с запуском через `uv`.
 - Вводить прямую service-to-service связность в обход брокера в `refs/` и в
   `skeletons/hub/CONVENTIONS.md` — только через брокер (`docs/refs/COMMUNICATION.md`).
   browser-facing presentation-эндпоинты (HTTP/WS для интерфейсов) — только на
