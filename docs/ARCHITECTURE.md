@@ -36,6 +36,16 @@ ADR. Сервисы, интерфейсы и автономные компоне
 - Контракт имеет владельца, версию, схему и consumer/contract tests.
 - Секреты не передаются в событиях, репозиториях или evidence.
 
+Для event-контракта обязательны: producer и consumers, payload schema,
+partition/ordering key, delivery semantics, idempotency key, retry/DLQ,
+максимальный размер, retention, PII-класс и compatibility policy. HTTP/WS
+описывается OpenAPI, события — AsyncAPI и JSON Schema/Protobuf/Avro.
+
+Breaking contract требует отдельной задачи, ADR, `BREAKING CHANGE:` и плана
+миграции consumers. Совместимые consumers разворачиваются раньше producer,
+начинающего публиковать новую форму. Удаление поля выполняется только после
+периода совместимости; contract tests блокируют merge.
+
 ## Рабочие артефакты
 
 - `docs/ARCHITECTURE.md` — роль компонента, границы, зависимости и потоки.

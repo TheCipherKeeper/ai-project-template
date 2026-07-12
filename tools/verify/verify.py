@@ -61,6 +61,9 @@ FORBIDDEN_METHODOLOGY_ARTIFACTS = (
 )
 LINK_PATTERN = re.compile(r"\[[^]]+\]\(([^)]+)")
 REPOSITORY_TYPE_PATTERN = re.compile(r"^repository_type:\s*([a-z]+)\s*$", re.MULTILINE)
+METHODOLOGY_REF_PATTERN = re.compile(r"^methodology_ref:\s*(\S+)\s*$", re.MULTILINE)
+TASK_PATTERN = re.compile(r"^### TASK-[0-9]{4,}\. \[(?: |x)\](?: ready)?(?: —| \[)", re.MULTILINE)
+LEGACY_DOC_PATTERN = re.compile(r"docs/(?:guide|refs)/")
 
 
 def parse_args() -> argparse.Namespace:
@@ -81,6 +84,14 @@ def repository_type(root: Path) -> str:
         return "methodology"
     match = REPOSITORY_TYPE_PATTERN.search(config.read_text(encoding="utf-8"))
     return match.group(1) if match else "methodology"
+
+
+def methodology_ref(root: Path) -> str | None:
+    config = root / ".methodology.yml"
+    if not config.is_file():
+        return None
+    match = METHODOLOGY_REF_PATTERN.search(config.read_text(encoding="utf-8"))
+    return match.group(1) if match else None
 
 
 def result(check_id: str, passed: bool, message: str, location: str) -> dict[str, str]:
@@ -139,6 +150,19 @@ def run(root: Path) -> dict[str, object]:
     for item in required:
         checks.append(result("VER-001", (root / item).exists(), f"Обязательный файл: {item}", item))
 
+    pinned_ref = methodology_ref(root)
+    valid_ref = pinned_ref == "self" if kind == "methodology" else bool(
+        pinned_ref and pinned_ref not in {"latest", "<tag-or-commit>"}
+    )
+    checks.append(
+        result(
+            "VER-003",
+            valid_ref,
+            "Версия методологии закреплена точным ref",
+            ".methodology.yml",
+        )
+    )
+
     if kind == "methodology":
         for item in FORBIDDEN_METHODOLOGY_ARTIFACTS:
             checks.append(
@@ -155,6 +179,21 @@ def run(root: Path) -> dict[str, object]:
     if broken_links:
         links_message = "Висячие ссылки: " + "; ".join(broken_links)
     checks.append(result("VER-010", not broken_links, links_message, "*.md"))
+
+    legacy_references = []
+    for markdown in markdown_files(root):
+        if LEGACY_DOC_PATTERN.search(markdown.read_text(encoding="utf-8")):
+            legacy_references.append(str(markdown.relative_to(root)))
+    checks.append(
+        result(
+            "VER-004",
+            not legacy_references,
+            "Нет ссылок на удалённые docs/guide и docs/refs"
+            if not legacy_references
+            else "Устаревшие ссылки: " + ", ".join(legacy_references),
+            "*.md",
+        )
+    )
 
     invalid_json = []
     for schema in (POLICY_ROOT / "schemas").glob("*.json"):
@@ -175,6 +214,18 @@ def run(root: Path) -> dict[str, object]:
             "VER-005",
             legacy_in_flight == 0,
             "В backlog нет устаревшего статуса [~]",
+            "BACKLOG.md" if kind == "hub" else "skeletons/hub/BACKLOG.md",
+        )
+    )
+    task_lines = re.findall(r"^### TASK-.*$", backlog_text, re.MULTILINE)
+    malformed_tasks = [line for line in task_lines if not TASK_PATTERN.match(line)]
+    checks.append(
+        result(
+            "VER-006",
+            not malformed_tasks,
+            "Заголовки задач соответствуют TASK-NNNN и допустимым статусам"
+            if not malformed_tasks
+            else "Некорректные задачи: " + "; ".join(malformed_tasks),
             "BACKLOG.md" if kind == "hub" else "skeletons/hub/BACKLOG.md",
         )
     )

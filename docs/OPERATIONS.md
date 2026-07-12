@@ -24,6 +24,26 @@ deployment:
 Evidence создаётся автоматикой, не содержит секретов и хранится как CI artifact
 или ссылка из результата задачи.
 
+Один evidence-объект обязательно содержит task, run, commit, точный
+`methodology_ref`, результаты checks и reviews, число попыток, artifact digest,
+deployment probes и итоговый статус. Для неприменимой проверки записывается
+`not_applicable` с причиной.
+
+## Эксплуатационный минимум
+
+- Контейнер собирается multistage, запускается не от root и содержит только
+  runtime-артефакты и зависимости.
+- Перед deploy проходят `docker compose config`, сборка образа и dependency/
+  secret scan.
+- Компонент определяет liveness/readiness, graceful shutdown, structured logs,
+  correlation/trace ID, основные метрики и режим деградации.
+- Consumer определяет idempotency, retry с backoff, poison-message handling и
+  DLQ.
+- Внешние порты открываются только намеренно; browser-facing порты принадлежат
+  gateway.
+- После deploy выполняются readiness, smoke, применимые probes и окно
+  наблюдения. Провал блокирует завершение задачи.
+
 ## Миграции данных
 
 Изменение persisted data требует совместимого порядка rollout, резервной копии

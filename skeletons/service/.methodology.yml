@@ -1,2 +1,3 @@
 schema_version: 1
 repository_type: service
+methodology_ref: <tag-or-commit>
