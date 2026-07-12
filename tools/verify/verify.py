@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -27,6 +28,7 @@ REQUIRED_BY_TYPE = {
         "AGENTS.md",
         "README.md",
         "BACKLOG.md",
+        ".tasks",
         "COMPOSITION.md",
         "CONVENTIONS.md",
         ".methodology.yml",
@@ -103,6 +105,7 @@ def parse_args() -> argparse.Namespace:
         "--methodology-ref",
         help="точный ref методологии, фактически загруженный CI",
     )
+    parser.add_argument("--commit", help="commit, для которого создан evidence")
     return parser.parse_args()
 
 
@@ -197,6 +200,118 @@ def schema_errors(document: object, name: str) -> list[str]:
     return errors
 
 
+def resolve_ref(schema: dict[str, object], root_schema: dict[str, object]) -> dict[str, object]:
+    ref = schema.get("$ref")
+    if not isinstance(ref, str):
+        return schema
+    current: object = root_schema
+    for part in ref.removeprefix("#/").split("/"):
+        current = current[part] if isinstance(current, dict) else None
+    return current if isinstance(current, dict) else {}
+
+
+def validate_json(instance: object, schema: dict[str, object], root_schema=None, path="$ ") -> list[str]:
+    """Проверить используемое методологией подмножество JSON Schema 2020-12."""
+    root_schema = root_schema or schema
+    schema = resolve_ref(schema, root_schema)
+    errors: list[str] = []
+    expected = schema.get("type")
+    type_map = {
+        "object": dict,
+        "array": list,
+        "string": str,
+        "integer": int,
+        "boolean": bool,
+    }
+    if expected in type_map and (not isinstance(instance, type_map[expected]) or expected == "integer" and isinstance(instance, bool)):
+        return [f"{path.strip()}: ожидается {expected}"]
+    if "const" in schema and instance != schema["const"]:
+        errors.append(f"{path.strip()}: ожидается {schema['const']!r}")
+    if isinstance(schema.get("enum"), list) and instance not in schema["enum"]:
+        errors.append(f"{path.strip()}: недопустимое значение {instance!r}")
+    if isinstance(instance, dict):
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+        for key in required if isinstance(required, list) else []:
+            if key not in instance:
+                errors.append(f"{path}{key}: обязательное поле отсутствует")
+        if schema.get("additionalProperties") is False and isinstance(properties, dict):
+            for key in instance.keys() - properties.keys():
+                errors.append(f"{path}{key}: неизвестное поле")
+        if isinstance(properties, dict):
+            for key, value in instance.items():
+                child = properties.get(key)
+                if isinstance(child, dict):
+                    errors.extend(validate_json(value, child, root_schema, f"{path}{key}."))
+    if isinstance(instance, list):
+        if isinstance(schema.get("minItems"), int) and len(instance) < schema["minItems"]:
+            errors.append(f"{path.strip()}: недостаточно элементов")
+        if schema.get("uniqueItems") is True and len({json.dumps(x, sort_keys=True) for x in instance}) != len(instance):
+            errors.append(f"{path.strip()}: элементы должны быть уникальны")
+        item_schema = schema.get("items")
+        if isinstance(item_schema, dict):
+            for index, value in enumerate(instance):
+                errors.extend(validate_json(value, item_schema, root_schema, f"{path}{index}."))
+    if isinstance(instance, str):
+        if isinstance(schema.get("minLength"), int) and len(instance) < schema["minLength"]:
+            errors.append(f"{path.strip()}: строка слишком короткая")
+        pattern = schema.get("pattern")
+        if isinstance(pattern, str) and not re.fullmatch(pattern, instance):
+            errors.append(f"{path.strip()}: значение не соответствует pattern")
+        if schema.get("format") == "date-time":
+            try:
+                datetime.fromisoformat(instance.replace("Z", "+00:00"))
+            except ValueError:
+                errors.append(f"{path.strip()}: ожидается date-time")
+    if isinstance(instance, int) and not isinstance(instance, bool):
+        if isinstance(schema.get("minimum"), int) and instance < schema["minimum"]:
+            errors.append(f"{path.strip()}: значение меньше minimum")
+        if isinstance(schema.get("maximum"), int) and instance > schema["maximum"]:
+            errors.append(f"{path.strip()}: значение больше maximum")
+    if isinstance(schema.get("not"), dict) and not validate_json(instance, schema["not"], root_schema, path):
+        errors.append(f"{path.strip()}: запрещённое значение")
+    for condition in schema.get("allOf", []) if isinstance(schema.get("allOf"), list) else []:
+        if not isinstance(condition, dict):
+            continue
+        if "if" not in condition:
+            errors.extend(validate_json(instance, condition, root_schema, path))
+            continue
+        selector = condition.get("if", {}).get("properties", {})
+        matches = isinstance(instance, dict) and all(
+            key in instance and not validate_json(instance[key], value, root_schema, path)
+            for key, value in selector.items()
+        )
+        branch = condition.get("then" if matches else "else")
+        if isinstance(branch, dict):
+            errors.extend(validate_json(instance, branch, root_schema, path))
+    return errors
+
+
+def load_records(directory: Path, schema_name: str) -> tuple[dict[str, dict[str, object]], list[str]]:
+    records: dict[str, dict[str, object]] = {}
+    errors: list[str] = []
+    schema = json.loads((POLICY_ROOT / "schemas" / schema_name).read_text(encoding="utf-8"))
+    if not directory.is_dir():
+        return records, [f"отсутствует каталог {directory.name}"]
+    for path in sorted(directory.glob("*.json")):
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            errors.append(f"{path.name}: {error}")
+            continue
+        validation = validate_json(document, schema)
+        errors.extend(f"{path.name}: {error}" for error in validation)
+        if isinstance(document, dict):
+            key = document.get("id") or document.get("task_id")
+            if isinstance(key, str):
+                if path.stem != key:
+                    errors.append(f"{path.name}: имя файла должно быть {key}.json")
+                if key in records:
+                    errors.append(f"{path.name}: повтор записи {key}")
+                records[key] = document
+    return records, errors
+
+
 def forbidden_artifacts(root: Path, kind: str) -> list[str]:
     violations = []
     for path in root.rglob("*"):
@@ -253,7 +368,7 @@ def backlog_errors(backlog_text: str) -> list[str]:
     return errors
 
 
-def run(root: Path, ci_methodology_ref: str | None = None) -> dict[str, object]:
+def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str | None = None) -> dict[str, object]:
     checks: list[dict[str, str]] = []
     config, config_errors = methodology_config(root)
     kind = config.get("repository_type", "invalid")
@@ -373,6 +488,62 @@ def run(root: Path, ci_methodology_ref: str | None = None) -> dict[str, object]:
                 backlog_location,
             )
         )
+
+        tasks, task_record_errors = load_records(
+            root / ".tasks" if kind == "hub" else root / "skeletons/hub/.tasks",
+            "task.schema.json",
+        )
+        parsed_headings = {
+            match.group(1): "done" if "[x]" in heading else match.group(2)
+            for heading in re.findall(r"^### TASK-.*$", backlog_text, re.MULTILINE)
+            if (match := TASK_PATTERN.fullmatch(heading))
+        }
+        for task_id, status in parsed_headings.items():
+            record = tasks.get(task_id)
+            if record is None:
+                task_record_errors.append(f"{task_id}: отсутствует машинная запись")
+            elif record.get("status") != status:
+                task_record_errors.append(
+                    f"{task_id}: status={record.get('status')} не совпадает с backlog={status}"
+                )
+        for task_id in tasks.keys() - parsed_headings.keys():
+            task_record_errors.append(f"{task_id}: нет соответствующей задачи в BACKLOG.md")
+        checks.append(result("VER-012", not task_record_errors,
+            "Машинные задачи валидны и соответствуют BACKLOG.md" if not task_record_errors
+            else "Ошибки машинных задач: " + "; ".join(task_record_errors), ".tasks/*.json"))
+
+        evidence, evidence_errors = load_records(
+            root / ".evidence" if kind == "hub" else root / "skeletons/hub/.evidence",
+            "evidence.schema.json",
+        )
+        # README не является evidence; отсутствие JSON допустимо, пока нет done-задач.
+        evidence_errors = [error for error in evidence_errors if "отсутствует каталог" not in error]
+        for task_id, record in evidence.items():
+            if task_id not in tasks:
+                evidence_errors.append(f"{task_id}: evidence не связан с машинной задачей")
+            if record.get("methodology_ref") != pinned_ref and kind != "methodology":
+                evidence_errors.append(f"{task_id}: methodology_ref не совпадает с .methodology.yml")
+            if expected_commit and record.get("commit") != expected_commit:
+                evidence_errors.append(f"{task_id}: commit не совпадает с --commit")
+            try:
+                created = datetime.fromisoformat(str(record.get("created_at", "")).replace("Z", "+00:00"))
+                retained = datetime.fromisoformat(str(record.get("retained_until", "")).replace("Z", "+00:00"))
+                if retained <= created:
+                    evidence_errors.append(f"{task_id}: retained_until должен быть позже created_at")
+            except ValueError:
+                pass  # Формат уже диагностирован валидатором схемы.
+            results = record.get("checks", []) + record.get("reviews", [])
+            probes = record.get("deployment", {}).get("probes", []) if isinstance(record.get("deployment"), dict) else []
+            if record.get("status") == "passed" and any(
+                item.get("status") == "failed" for item in results + probes if isinstance(item, dict)
+            ):
+                evidence_errors.append(f"{task_id}: passed evidence содержит failed результат")
+        for task_id, task in tasks.items():
+            if task.get("status") == "done" and task_id not in evidence:
+                evidence_errors.append(f"{task_id}: завершённая задача не имеет evidence")
+        checks.append(result("VER-013", not evidence_errors,
+            "Evidence валиден, связан с задачами и контекстом CI" if not evidence_errors
+            else "Ошибки evidence: " + "; ".join(evidence_errors), ".evidence/*.json"))
         malformed_tasks = backlog_errors(backlog_text)
         checks.append(
             result(
@@ -392,7 +563,7 @@ def run(root: Path, ci_methodology_ref: str | None = None) -> dict[str, object]:
 def main() -> int:
     args = parse_args()
     root = args.root.resolve()
-    report = run(root, args.methodology_ref)
+    report = run(root, args.methodology_ref, args.commit)
     output = json.dumps(report, ensure_ascii=False, indent=2)
     if args.report:
         args.report.write_text(output + "\n", encoding="utf-8")

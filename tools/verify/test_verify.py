@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from verify import markdown_files, run
+import json
+
+from verify import markdown_files, run, validate_json
 
 
 def make_hub(tmp_path: Path, methodology_ref: str = "v1.0.0") -> None:
@@ -145,3 +147,53 @@ def test_service_does_not_require_local_backlog(tmp_path: Path) -> None:
     report = run(tmp_path)
 
     assert not any(check["id"] in {"VER-005", "VER-006"} for check in report["checks"])
+
+
+def test_hub_requires_machine_task_matching_backlog(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [ ] ready — Задача\n\nЦель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n",
+        encoding="utf-8",
+    )
+
+    report = run(tmp_path)
+
+    assert any(check["id"] == "VER-012" and check["status"] == "failed" for check in report["checks"])
+
+
+def test_done_task_requires_evidence(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [x] — Задача\n\nЦель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n",
+        encoding="utf-8",
+    )
+    tasks = tmp_path / ".tasks"
+    tasks.mkdir()
+    (tasks / "TASK-0001.json").write_text(json.dumps({
+        "schema_version": 1, "id": "TASK-0001", "status": "done", "target": "hub",
+        "risk": "low", "autonomy": "auto-test-deploy", "goal": "x",
+        "acceptance_criteria": ["x"], "out_of_scope": ["нет"]
+    }), encoding="utf-8")
+
+    report = run(tmp_path)
+
+    assert any(check["id"] == "VER-013" and check["status"] == "failed" for check in report["checks"])
+
+
+def test_evidence_schema_requires_digest_sources_and_reviewer() -> None:
+    schema = json.loads((Path(__file__).parents[2] / "schemas/evidence.schema.json").read_text(encoding="utf-8"))
+    invalid = {
+        "schema_version": 1, "task_id": "TASK-0001", "run_id": "1",
+        "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
+        "methodology_ref": "v1.0.0", "checks": [{"name": "gate", "status": "passed"}],
+        "reviews": [{"name": "review", "status": "passed", "source": "run:1"}],
+        "attempts": 1, "artifact": "image:latest",
+        "deployment": {"environment": "test", "probes": [{"name": "smoke", "status": "passed", "source": "run:1"}]},
+        "status": "passed", "created_at": "2026-01-01T00:00:00Z", "retained_until": "2026-02-01T00:00:00Z"
+    }
+
+    errors = validate_json(invalid, schema)
+
+    assert any("checks.0.source" in error for error in errors)
+    assert any("reviews.0.reviewer" in error for error in errors)
+    assert any("artifact" in error for error in errors)
