@@ -10,8 +10,9 @@ jobs:
           repository: ${{ vars.METHODOLOGY_REPOSITORY }}
           ref: ${{ vars.METHODOLOGY_VERSION }}
           path: .methodology-policy
-      - shell: pwsh
-        run: ./.methodology-policy/tools/verify/verify.ps1 -Root ${{ github.workspace }} -Report verification.json
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - run: uv run .methodology-policy/tools/verify/verify.py --root ${{ github.workspace }} --report verification.json
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: verification, path: verification.json }

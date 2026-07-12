@@ -5,12 +5,13 @@ on:
     branches: [main]
 jobs:
   methodology:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Verify methodology
-        shell: pwsh
-        run: ./tools/verify/verify.ps1 -Report verification.json
+        run: uv run tools/verify/verify.py --report verification.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
