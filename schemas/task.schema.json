@@ -2,8 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "status", "target", "risk", "autonomy", "goal", "acceptance_criteria"],
+  "required": ["schema_version", "id", "status", "target", "risk", "autonomy", "goal", "acceptance_criteria", "out_of_scope"],
   "properties": {
+    "schema_version": { "const": 1 },
     "id": { "type": "string", "pattern": "^TASK-[0-9]{4,}$" },
     "status": { "enum": ["ready", "done", "needs-input", "blocked-external", "automation-failed", "retry-exhausted"] },
     "target": { "type": "string", "minLength": 1 },
@@ -11,6 +12,11 @@
     "autonomy": { "enum": ["auto-test-deploy", "human-before-production", "human-before-merge"] },
     "goal": { "type": "string", "minLength": 1 },
     "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "out_of_scope": {
       "type": "array",
       "minItems": 1,
       "items": { "type": "string", "minLength": 1 }

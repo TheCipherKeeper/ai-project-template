@@ -6,6 +6,8 @@
 lock-PR не используются.
 
 Правила цикла: `<methodology-repo>/docs/WORKFLOW.md`.
+Каждая задача имеет одноимённую машинную запись `.tasks/TASK-NNNN.json`;
+verifier сверяет её ID и статус с этим файлом.
 
 ## Задачи
 

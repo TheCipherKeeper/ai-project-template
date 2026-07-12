@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "TASK-0001",
+  "status": "ready",
+  "target": "hub",
+  "risk": "low",
+  "autonomy": "auto-test-deploy",
+  "goal": "Опиши наблюдаемый результат для пользователя или системы, не способ реализации.",
+  "acceptance_criteria": [
+    "результат можно проверить",
+    "важный граничный случай учтён"
+  ],
+  "out_of_scope": ["нет"],
+  "triggers": []
+}

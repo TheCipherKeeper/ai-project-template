@@ -24,10 +24,18 @@ deployment:
 Evidence создаётся автоматикой, не содержит секретов и хранится как CI artifact
 или ссылка из результата задачи.
 
-Один evidence-объект обязательно содержит task, run, commit, точный
-`methodology_ref`, результаты checks и reviews, число попыток, artifact digest,
-deployment probes и итоговый статус. Для неприменимой проверки записывается
-`not_applicable` с причиной.
+Один evidence-объект по `schemas/evidence.schema.json` обязательно содержит
+task, CI run, PR, commit, точный `methodology_ref`, результаты checks и reviews
+с источниками, число попыток, artifact digest, deployment probes, итоговый
+статус, время создания и срок хранения. Для неприменимой проверки записывается
+`not_applicable` с причиной. Независимое review содержит идентификатор reviewer.
+
+Evidence публикуется как неизменяемый CI artifact `.evidence/TASK-NNNN.json`.
+Хаб хранит одноимённую машинную задачу `.tasks/TASK-NNNN.json`; verifier сверяет
+ID и статус с `BACKLOG.md`, связывает завершённую задачу с evidence и при наличии
+CI-параметров проверяет pinned methodology ref и commit. Evidence и указанные в
+нём логи доступны как минимум до `retained_until`; перезапись evidence для того
+же run запрещена, исправление создаёт новый run.
 
 ## Эксплуатационный минимум
 
