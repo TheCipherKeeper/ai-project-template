@@ -78,8 +78,6 @@ fix(composition): register new billing service
 chore(backlog): mark 7 in-flight
 docs: link ADR-0007 from COMPOSITION
 ```
-docs: link ADR-0007 from COMPOSITION
-```
 
 Breaking changes контракта — `BREAKING CHANGE:` в теле.
 

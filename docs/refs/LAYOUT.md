@@ -51,7 +51,7 @@
   (`<hub>/BACKLOG.md`), в сервис-репо не копируется.
 
 Код, `<workspace>/`, `<manifest>`, `<lock>` — заводятся под выбранный стек по
-фазе `docs/guide/00-bootstrap.md`.
+этапу `docs/guide/00-bootstrap.md`.
 
 ## Модули и спеки
 

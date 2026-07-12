@@ -67,7 +67,7 @@ graph LR
 - **rule (блокирует, детерминированный):** модуль экспонирует каноничные швы
   (`usecases/` + `ports` + `domain` + `adapters/` по per-stack имён); каждый
   юзкейс определяет input port. Реализуется структурным линтом в сервис-репо.
-- **agent (неблокирует, conformance):** направление зависимостей — usecases
+- **agent (сырой вердикт не блокирует, conformance):** направление зависимостей — usecases
   импортируют только ports+domain, не adapters; adapters реализуют ports;
   модуль реэкспортит только input ports.
 
