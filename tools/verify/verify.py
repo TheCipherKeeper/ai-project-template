@@ -6,6 +6,7 @@ import argparse
 import ast
 import json
 import re
+import subprocess
 import sys
 import tomllib
 from datetime import datetime
@@ -109,6 +110,14 @@ TEXT_DIAGRAM_PATTERN = re.compile(
     r"(?:-{1,2}>|<-{1,2}|[→←↔]|[┌┐└┘├┤┬┴┼│]|^\s*\+[-=]{2,}(?:\+|\s))",
     re.MULTILINE,
 )
+INLINE_TEXT_DIAGRAM_PATTERN = re.compile(
+    r"^[ \t]*(?:[`\[]?[A-Za-zА-Яа-яЁё0-9_.:/-]+[`\]]?)[ \t]+(?:-{1,2}>|<-{1,2})[ \t]+\S+[ \t]*$"
+    r"|[┌┐└┘├┤┬┴┼│]",
+    re.MULTILINE,
+)
+RFC3339_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -185,8 +194,8 @@ def markdown_files(root: Path):
         "target",
         "vendor",
     }
-    for path in root.rglob("*.md"):
-        if not ignored_trees.intersection(path.relative_to(root).parts):
+    for path in sorted(root.rglob("*.md")):
+        if path.is_file() and not ignored_trees.intersection(path.relative_to(root).parts):
             yield path
 
 
@@ -218,25 +227,45 @@ def non_mermaid_diagrams(root: Path) -> list[str]:
     """Найти диаграммы Markdown, оформленные не блоками Mermaid."""
     violations = []
     for markdown in markdown_files(root):
-        text = markdown.read_text(encoding="utf-8")
+        try:
+            text = markdown.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            violations.append(f"{markdown.relative_to(root)}: невозможно прочитать: {error}")
+            continue
+        fenced_lines: set[int] = set()
         for line, language, body in fenced_blocks(text):
+            body_lines = len(body.splitlines())
+            fenced_lines.update(range(line, line + body_lines + 2))
             is_other_diagram_language = language in NON_MERMAID_DIAGRAM_LANGUAGES
             is_text_diagram = language in {"", "text"} and TEXT_DIAGRAM_PATTERN.search(body)
             if is_other_diagram_language or is_text_diagram:
                 violations.append(f"{markdown.relative_to(root)}:{line}")
+        outside = "\n".join(
+            line if number not in fenced_lines else ""
+            for number, line in enumerate(text.splitlines(), 1)
+        )
+        match = INLINE_TEXT_DIAGRAM_PATTERN.search(outside)
+        if match:
+            line = outside.count("\n", 0, match.start()) + 1
+            violations.append(f"{markdown.relative_to(root)}:{line}")
     return violations
 
 
 def broken_markdown_links(root: Path) -> list[str]:
     broken = []
     for markdown in markdown_files(root):
-        for match in LINK_PATTERN.finditer(markdown.read_text(encoding="utf-8")):
+        try:
+            text = markdown.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            broken.append(f"{markdown.relative_to(root)}: невозможно прочитать: {error}")
+            continue
+        for match in LINK_PATTERN.finditer(text):
             target = match.group(1).split("#", 1)[0].strip("<>")
             if not target or re.match(r"^(https?://|mailto:|<)", target):
                 continue
             candidate = markdown.parent / unquote(target)
             if not candidate.exists():
-                broken.append(f"{markdown}: {target}")
+                broken.append(f"{markdown.relative_to(root)}: {target}")
     return broken
 
 
@@ -324,8 +353,12 @@ def validate_json(instance: object, schema: dict[str, object], root_schema=None,
             errors.append(f"{path.strip()}: значение не соответствует pattern")
         if schema.get("format") == "date-time":
             try:
-                datetime.fromisoformat(instance.replace("Z", "+00:00"))
-            except ValueError:
+                if not RFC3339_PATTERN.fullmatch(instance):
+                    raise ValueError
+                parsed = datetime.fromisoformat(instance.replace("Z", "+00:00"))
+                if parsed.utcoffset() is None:
+                    raise ValueError
+            except (ValueError, OverflowError):
                 errors.append(f"{path.strip()}: ожидается date-time")
     if isinstance(instance, int) and not isinstance(instance, bool):
         if isinstance(schema.get("minimum"), int) and instance < schema["minimum"]:
@@ -376,6 +409,39 @@ def load_records(directory: Path, schema_name: str) -> tuple[dict[str, dict[str,
     return records, errors
 
 
+def commit_is_ancestor(root: Path, commit: object) -> bool:
+    """Проверить, что evidence ссылается на коммит в истории текущего HEAD."""
+    if not (root / ".git").exists() or not isinstance(commit, str):
+        return True
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "merge-base", "--is-ancestor", commit, "HEAD"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except OSError:
+        return False
+    return completed.returncode == 0
+
+
+def commit_matches_head(root: Path, commit: object) -> bool:
+    """Проверить точное соответствие переданного CI-коммита текущему HEAD."""
+    if not isinstance(commit, str):
+        return False
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return completed.returncode == 0 and completed.stdout.strip() == commit
+
+
 def forbidden_artifacts(root: Path, kind: str) -> list[str]:
     violations = []
     for path in root.rglob("*"):
@@ -414,6 +480,14 @@ def skeleton_errors(root: Path) -> list[str]:
             or config.get("service_modules") != "<module>[,<module>...]"
         ):
             errors.append(f"skeletons/{directory}/.methodology.yml: неверные поля service")
+        if kind == "service":
+            header, _ = documented_service_table(skeleton)
+            expected = [
+                "Модуль", "Ответственность", "Спецификация", "Язык",
+                "Канонический корень", "Проверка границ",
+            ]
+            if header != expected:
+                errors.append("skeletons/service/docs/ARCHITECTURE.md: неверные столбцы модулей")
         if kind == "standalone" and skeleton.is_dir():
             for path in skeleton.rglob("*"):
                 if not path.is_file():
@@ -598,13 +672,13 @@ def go_import_errors(root: Path, modules: list[str]) -> list[str]:
             for block in re.findall(r"(?ms)^\s*import\s*\((.*?)\)", text):
                 imports.extend(re.findall(r'["`]([^"`\n]+)["`]', block))
             for target in imports:
+                prefix = f"{module_path}/internal/"
                 external = "." in target.split("/", 1)[0] or any(
                     target == dependency or target.startswith(f"{dependency}/")
                     for dependency in required_modules
                 )
-                if not source_layer.startswith("adapters/") and external:
+                if not source_layer.startswith("adapters/") and external and not target.startswith(prefix):
                     errors.append(f"{source.relative_to(root)}: внутренний слой импортирует внешнюю библиотеку {target}")
-                prefix = f"{module_path}/internal/"
                 if not target.startswith(prefix):
                     continue
                 parts = tuple(target.removeprefix(prefix).split("/"))
@@ -614,6 +688,70 @@ def go_import_errors(root: Path, modules: list[str]) -> list[str]:
                 if target_layer and (error := dependency_error(module, source_layer, parts[0], target_layer)):
                     errors.append(f"{source.relative_to(root)}: {error}")
     return errors
+
+
+def strip_rust_noncode(text: str) -> str:
+    """Убрать строки и вложенные комментарии Rust, сохранив строки и позиции."""
+    output = list(text)
+    index = 0
+
+    def erase(start: int, end: int) -> None:
+        for position in range(start, end):
+            if output[position] != "\n":
+                output[position] = " "
+
+    while index < len(text):
+        if text.startswith("//", index):
+            end = text.find("\n", index)
+            end = len(text) if end == -1 else end
+            erase(index, end)
+            index = end
+            continue
+        if text.startswith("/*", index):
+            start = index
+            depth = 1
+            index += 2
+            while index < len(text) and depth:
+                if text.startswith("/*", index):
+                    depth += 1
+                    index += 2
+                elif text.startswith("*/", index):
+                    depth -= 1
+                    index += 2
+                else:
+                    index += 1
+            erase(start, index)
+            continue
+        raw = re.match(r'r(#{0,255})"', text[index:])
+        if raw:
+            start = index
+            terminator = '"' + raw.group(1)
+            content_start = index + raw.end()
+            end = text.find(terminator, content_start)
+            index = len(text) if end == -1 else end + len(terminator)
+            erase(start, index)
+            continue
+        if text[index] == '"':
+            start = index
+            index += 1
+            while index < len(text):
+                if text[index] == "\\":
+                    index += 2
+                elif text[index] == '"':
+                    index += 1
+                    break
+                else:
+                    index += 1
+            erase(start, min(index, len(text)))
+            continue
+        character = re.match(r"'(?:\\.|[^'\\\n])'", text[index:])
+        if character:
+            end = index + character.end()
+            erase(index, end)
+            index = end
+            continue
+        index += 1
+    return "".join(output)
 
 
 def rust_import_errors(root: Path, modules: list[str]) -> list[str]:
@@ -647,7 +785,7 @@ def rust_import_errors(root: Path, modules: list[str]) -> list[str]:
                     continue
                 errors.append(f"{source.relative_to(root)}: Rust-код вне канонического слоя")
                 continue
-            text = source.read_text(encoding="utf-8")
+            text = strip_rust_noncode(source.read_text(encoding="utf-8"))
             imports = []
             for match in re.finditer(r"(?m)^\s*(?:pub\s+)?use\s+([^;]+);", text):
                 expression = match.group(1).strip()
@@ -730,7 +868,7 @@ def composition_root_errors(root: Path, language: str, path: Path) -> list[str]:
             if not isinstance(value, ast.Call):
                 return False
             function = value.func.id if isinstance(value.func, ast.Name) else value.func.attr if isinstance(value.func, ast.Attribute) else ""
-            return function[:1].isupper() or function.startswith(("build", "create", "make", "new"))
+            return function[:1].isupper() or function in {"build", "create", "make", "new"}
         expressions = [node for node in tree.body if isinstance(node, ast.Expr)]
         terminal_calls = [
             node for node in expressions
@@ -818,7 +956,7 @@ def service_architecture_errors(root: Path, config: dict[str, str]) -> list[str]
     if errors:
         return errors
     expected_header = [
-        "Модуль", "Ответственность", "Спека", "Язык", "Канонический корень", "Проверка границ"
+        "Модуль", "Ответственность", "Спецификация", "Язык", "Канонический корень", "Проверка границ"
     ]
     header, rows = documented_service_table(root)
     documented_modules = [row[0].strip("`") for row in rows if row]
@@ -838,7 +976,7 @@ def service_architecture_errors(root: Path, config: dict[str, str]) -> list[str]
             errors.append(f"docs/ARCHITECTURE.md: неверные язык или корень модуля {module}")
         expected_spec = f"docs/specs/{module}.md"
         if values[2] != expected_spec or not (root / expected_spec).is_file():
-            errors.append(f"docs/ARCHITECTURE.md: неверная или отсутствующая спека модуля {module}")
+            errors.append(f"docs/ARCHITECTURE.md: неверная или отсутствующая спецификация модуля {module}")
         if values[5] != "VER-015":
             errors.append(f"docs/ARCHITECTURE.md: модуль {module} должен проверяться VER-015")
         if any(not value or value == "TODO" for value in values[1:]):
@@ -912,6 +1050,98 @@ def service_architecture_errors(root: Path, config: dict[str, str]) -> list[str]
     return errors
 
 
+COMPOSITION_HEADERS = {
+    "Сервисы": ["Сервис", "Репозиторий", "Версия/хеш", "Роль", "Публикует / Читает"],
+    "Интерфейсы": [
+        "Интерфейс", "Репозиторий", "Версия/хеш", "Визуализирует",
+        "Потребляет (сервис-шлюз/маршрут)",
+    ],
+    "Автономные компоненты": [
+        "Компонент", "Репозиторий", "Версия/хеш", "Форма", "Назначение / поверхности",
+    ],
+}
+COMPONENT_VERSION_PATTERN = re.compile(
+    r"^(?:[0-9a-f]{7,40}|sha256:[0-9a-f]{64}|v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?)$"
+)
+
+
+def composition_table(text: str, section: str) -> tuple[list[str], list[list[str]]]:
+    match = re.search(rf"(?ms)^## {re.escape(section)}\s+(.*?)(?=^##\s|\Z)", text)
+    if not match:
+        return [], []
+    rows = []
+    for line in match.group(1).splitlines():
+        if line.startswith("|") and not re.fullmatch(r"[|:\-\s]+", line):
+            rows.append([cell.strip() for cell in line.strip("|").split("|")])
+    return (rows[0], rows[1:]) if rows else ([], [])
+
+
+def composition_errors(root: Path) -> tuple[list[str], list[str]]:
+    path = root / "COMPOSITION.md"
+    if not path.is_file():
+        return ["COMPOSITION.md отсутствует"], []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        return [f"COMPOSITION.md невозможно прочитать: {error}"], []
+    errors: list[str] = []
+    repositories: list[str] = []
+    names: set[str] = set()
+    gateways: set[str] = set()
+    interfaces: list[list[str]] = []
+    for section, expected_header in COMPOSITION_HEADERS.items():
+        header, rows = composition_table(text, section)
+        section_match = re.search(rf"(?ms)^## {re.escape(section)}\s+(.*?)(?=^##\s|\Z)", text)
+        explicitly_empty = bool(
+            section_match
+            and re.search(r"(?mi)^\s*(?:-\s*)?нет[.!]?\s*$", section_match.group(1))
+        )
+        if explicitly_empty and not rows:
+            continue
+        if header != expected_header:
+            errors.append(f"раздел «{section}»: неверные столбцы")
+            continue
+        if not rows:
+            errors.append(f"раздел «{section}»: укажите компоненты или строку «нет» вне таблицы")
+        for row in rows:
+            if len(row) != len(expected_header):
+                errors.append(f"раздел «{section}»: строка имеет неверное число столбцов")
+                continue
+            values = [cell.strip("`*") for cell in row]
+            name, repository, version = values[:3]
+            if any("<" in value or ">" in value or value in {"…", "..."} for value in values):
+                errors.append(f"раздел «{section}»: остался маркер заготовки")
+                continue
+            if not name or name in names:
+                errors.append(f"раздел «{section}»: пустое или повторное имя {name!r}")
+            names.add(name)
+            if not re.fullmatch(r"(?:https://\S+|ssh://\S+|git@[^\s:]+:\S+)", repository):
+                errors.append(f"раздел «{section}»: репозиторий {repository!r} должен быть URL Git")
+            elif repository in repositories:
+                errors.append(f"раздел «{section}»: репозиторий {repository!r} указан повторно")
+            else:
+                repositories.append(repository)
+            if not COMPONENT_VERSION_PATTERN.fullmatch(version):
+                errors.append(f"раздел «{section}»: версия/хеш {version!r} не закреплены")
+            if section == "Сервисы" and "`gateway`" in row[3]:
+                gateways.add(name)
+            if section == "Интерфейсы":
+                interfaces.append(values)
+    if interfaces and len(gateways) != 1:
+        errors.append("при наличии интерфейсов требуется ровно один сервис-шлюз")
+    if len(gateways) == 1:
+        gateway = next(iter(gateways))
+        for interface in interfaces:
+            if not re.match(rf"^{re.escape(gateway)}\s+/", interface[4]):
+                errors.append(f"интерфейс {interface[0]} должен ссылаться на сервис-шлюз {gateway}")
+    dependencies = re.search(r"(?ms)^## Зависимости \(DAG\)\s+(.*?)(?=^##\s|\Z)", text)
+    if not dependencies or not any(
+        language == "mermaid" for _, language, _ in fenced_blocks(dependencies.group(1))
+    ):
+        errors.append("раздел зависимостей должен содержать диаграмму Mermaid")
+    return errors, repositories
+
+
 def backlog_errors(backlog_text: str) -> list[str]:
     errors = []
     headings = re.findall(r"^### TASK-.*$", backlog_text, re.MULTILINE)
@@ -929,10 +1159,15 @@ def backlog_errors(backlog_text: str) -> list[str]:
         errors.append("нет ни одной задачи TASK-NNNN")
     for block in re.split(r"(?=^### TASK-)", backlog_text, flags=re.MULTILINE)[1:]:
         heading = block.splitlines()[0]
-        if TASK_PATTERN.fullmatch(heading):
+        match = TASK_PATTERN.fullmatch(heading)
+        if match:
             for field in ("Цель:", "Готово, когда:", "Не входит:"):
                 if field not in block:
                     errors.append(f"{heading}: отсутствует поле «{field}»")
+            if match.group(2) in {"needs-input", "blocked-external", "automation-failed", "retry-exhausted"}:
+                lines = [line.strip() for line in block.splitlines()[1:] if line.strip()]
+                if not lines or not lines[0].startswith("Диагностика:") or not lines[0].removeprefix("Диагностика:").strip():
+                    errors.append(f"{heading}: диагностика должна идти сразу после заголовка")
     return errors
 
 
@@ -954,7 +1189,9 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
 
     required = REQUIRED_BY_TYPE.get(kind, ())
     for item in required:
-        checks.append(result("VER-001", (root / item).exists(), f"Обязательный файл: {item}", item))
+        path = root / item
+        present = path.is_dir() if item == ".tasks" else path.is_file()
+        checks.append(result("VER-001", present, f"Обязательный файл: {item}", item))
 
     pinned_ref = config.get("methodology_ref")
     valid_ref = pinned_ref == "self" if kind == "methodology" else bool(
@@ -973,6 +1210,15 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
             ".methodology.yml",
         )
     )
+    if expected_commit is not None:
+        checks.append(
+            result(
+                "VER-017",
+                commit_matches_head(root, expected_commit),
+                "Переданный CI-коммит совпадает с текущим HEAD",
+                ".git/HEAD",
+            )
+        )
 
     if kind == "methodology":
         for item in FORBIDDEN_METHODOLOGY_ARTIFACTS:
@@ -999,8 +1245,11 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
 
     legacy_references = []
     for markdown in markdown_files(root):
-        if LEGACY_DOC_PATTERN.search(markdown.read_text(encoding="utf-8")):
-            legacy_references.append(str(markdown.relative_to(root)))
+        try:
+            if LEGACY_DOC_PATTERN.search(markdown.read_text(encoding="utf-8")):
+                legacy_references.append(str(markdown.relative_to(root)))
+        except (OSError, UnicodeDecodeError) as error:
+            legacy_references.append(f"{markdown.relative_to(root)}: невозможно прочитать: {error}")
     checks.append(
         result(
             "VER-004",
@@ -1062,9 +1311,23 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
             )
         )
 
+    if kind == "hub":
+        composition_problems, child_repositories = composition_errors(root)
+        composition_message = "Состав программы структурно валиден"
+        if child_repositories:
+            composition_message += "; дочерние репозитории: " + ", ".join(child_repositories)
+        if composition_problems:
+            composition_message = "Ошибки состава программы: " + "; ".join(composition_problems)
+        checks.append(result("VER-016", not composition_problems, composition_message, "COMPOSITION.md"))
+
     if kind in {"hub", "methodology"}:
         backlog = root / "BACKLOG.md" if kind == "hub" else root / "skeletons/hub/BACKLOG.md"
-        backlog_text = backlog.read_text(encoding="utf-8") if backlog.is_file() else ""
+        backlog_read_error = ""
+        try:
+            backlog_text = backlog.read_text(encoding="utf-8") if backlog.is_file() else ""
+        except (OSError, UnicodeDecodeError) as error:
+            backlog_text = ""
+            backlog_read_error = f"{backlog.name}: невозможно прочитать: {error}"
         backlog_location = "BACKLOG.md" if kind == "hub" else "skeletons/hub/BACKLOG.md"
         legacy_in_flight = len(re.findall(r"^### .*\[~\]", backlog_text, re.MULTILINE))
         checks.append(
@@ -1080,6 +1343,8 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
             root / ".tasks" if kind == "hub" else root / "skeletons/hub/.tasks",
             "task.schema.json",
         )
+        if backlog_read_error:
+            task_record_errors.append(backlog_read_error)
         try:
             expected_tasks = task_records(backlog_text)
         except BacklogError as error:
@@ -1109,14 +1374,14 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
                 evidence_errors.append(f"{task_id}: evidence не связан с машинной задачей")
             if record.get("methodology_ref") != pinned_ref and kind != "methodology":
                 evidence_errors.append(f"{task_id}: methodology_ref не совпадает с .methodology.yml")
-            if expected_commit and record.get("commit") != expected_commit:
-                evidence_errors.append(f"{task_id}: commit не совпадает с --commit")
+            if not commit_is_ancestor(root, record.get("commit")):
+                evidence_errors.append(f"{task_id}: commit отсутствует в истории текущего HEAD")
             try:
                 created = datetime.fromisoformat(str(record.get("created_at", "")).replace("Z", "+00:00"))
                 retained = datetime.fromisoformat(str(record.get("retained_until", "")).replace("Z", "+00:00"))
                 if retained <= created:
                     evidence_errors.append(f"{task_id}: retained_until должен быть позже created_at")
-            except ValueError:
+            except (ValueError, TypeError):
                 pass  # Формат уже диагностирован валидатором схемы.
             results = record.get("checks", []) + record.get("reviews", [])
             probes = record.get("deployment", {}).get("probes", []) if isinstance(record.get("deployment"), dict) else []
@@ -1125,12 +1390,15 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
             ):
                 evidence_errors.append(f"{task_id}: passed evidence содержит failed результат")
         for task_id, task in tasks.items():
-            if task.get("status") == "done" and task_id not in evidence:
-                evidence_errors.append(f"{task_id}: завершённая задача не имеет evidence")
+            if task.get("status") == "done":
+                if task_id not in evidence:
+                    evidence_errors.append(f"{task_id}: завершённая задача не имеет evidence")
+                elif evidence[task_id].get("status") != "passed":
+                    evidence_errors.append(f"{task_id}: завершённая задача требует evidence со статусом passed")
         checks.append(result("VER-013", not evidence_errors,
             "Evidence валиден, связан с задачами и контекстом CI" if not evidence_errors
             else "Ошибки evidence: " + "; ".join(evidence_errors), ".evidence/*.json"))
-        malformed_tasks = backlog_errors(backlog_text)
+        malformed_tasks = [backlog_read_error] if backlog_read_error else backlog_errors(backlog_text)
         checks.append(
             result(
                 "VER-006",

@@ -7,6 +7,7 @@
     "schema_version": { "const": 1 },
     "id": { "type": "string", "pattern": "^TASK-[0-9]{4,}$" },
     "status": { "enum": ["ready", "done", "needs-input", "blocked-external", "automation-failed", "retry-exhausted"] },
+    "diagnostic": { "type": "string", "minLength": 1 },
     "target": { "type": "string", "minLength": 1 },
     "risk": { "enum": ["low", "medium", "high", "critical"] },
     "autonomy": { "enum": ["auto-test-deploy", "human-before-production", "human-before-merge"] },
@@ -27,5 +28,16 @@
       "items": { "enum": ["architecture", "contract", "data", "infrastructure", "security"] }
     },
     "rollback": { "type": "string", "minLength": 1 }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["needs-input", "blocked-external", "automation-failed", "retry-exhausted"] }
+        },
+        "required": ["status"]
+      },
+      "then": { "required": ["diagnostic"] }
+    }
+  ]
 }

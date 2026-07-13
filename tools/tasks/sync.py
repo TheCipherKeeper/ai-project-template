@@ -1,11 +1,13 @@
-"""Generate machine task records from the canonical BACKLOG.md."""
+"""Создать машинные записи задач из канонического BACKLOG.md."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -29,10 +31,19 @@ ALLOWED_VALUES = {
     "autonomy": {"auto-test-deploy", "human-before-production", "human-before-merge"},
     "triggers": {"architecture", "contract", "data", "infrastructure", "security"},
 }
+DIAGNOSTIC_STATUSES = {
+    "needs-input", "blocked-external", "automation-failed", "retry-exhausted"
+}
+HIGH_RISK_TRIGGERS = {"contract", "data", "security"}
+AUTONOMY_RANK = {
+    "auto-test-deploy": 0,
+    "human-before-production": 1,
+    "human-before-merge": 2,
+}
 
 
 class BacklogError(ValueError):
-    """The backlog cannot be represented by task records."""
+    """Backlog нельзя однозначно представить машинными записями."""
 
 
 def _field(block: str, label: str) -> str | None:
@@ -65,6 +76,21 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
             "id": task_id,
             "status": "done" if match.group(2) else match.group(4),
         }
+        for label in (*SCALAR_FIELDS, *LIST_FIELDS, "Диагностика"):
+            if len(re.findall(rf"^{re.escape(label)}:", block, re.MULTILINE)) > 1:
+                raise BacklogError(f"{task_id}: поле «{label}» указано несколько раз")
+        status = str(record["status"])
+        diagnostic = _field(block, "Диагностика")
+        first_content = next((line.strip() for line in block.splitlines()[1:] if line.strip()), "")
+        if status in DIAGNOSTIC_STATUSES:
+            if not diagnostic:
+                raise BacklogError(f"{task_id}: диагностический статус требует поле «Диагностика»")
+            if (
+                not first_content.startswith("Диагностика:")
+                or not first_content.removeprefix("Диагностика:").strip()
+            ):
+                raise BacklogError(f"{task_id}: поле «Диагностика» должно идти сразу после заголовка")
+            record["diagnostic"] = " ".join(diagnostic.splitlines())
         for label, key in SCALAR_FIELDS.items():
             value = _field(block, label)
             if value:
@@ -87,12 +113,24 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
             items = [line[2:].strip() for line in lines]
             if not items or any(not item for item in items):
                 raise BacklogError(f"{task_id}: поле «{label}» должно быть списком")
+            if len(items) != len(set(items)):
+                raise BacklogError(f"{task_id}: поле «{label}» содержит повторяющиеся элементы")
             record[key] = items
         for key, allowed in ALLOWED_VALUES.items():
             values = record[key] if isinstance(record[key], list) else [record[key]]
             invalid = [value for value in values if value not in allowed]
             if invalid:
                 raise BacklogError(f"{task_id}: недопустимое значение {key}: {invalid[0]}")
+        triggers = set(record["triggers"])
+        risk = str(record["risk"])
+        autonomy = str(record["autonomy"])
+        if triggers & HIGH_RISK_TRIGGERS and risk not in {"high", "critical"}:
+            raise BacklogError(
+                f"{task_id}: триггеры contract, data и security требуют риск high или critical"
+            )
+        minimum_autonomy = 2 if risk == "critical" else 1 if risk == "high" else 0
+        if AUTONOMY_RANK[autonomy] < minimum_autonomy:
+            raise BacklogError(f"{task_id}: автономность слишком широка для риска {risk}")
         records[task_id] = record
     if not records:
         raise BacklogError("нет ни одной задачи TASK-NNNN")
@@ -107,22 +145,48 @@ def sync(root: Path, check: bool = False) -> list[str]:
     backlog = root / "BACKLOG.md"
     records = task_records(backlog.read_text(encoding="utf-8"))
     task_dir = root / ".tasks"
+    if task_dir.exists() and not task_dir.is_dir():
+        raise BacklogError(".tasks должен быть каталогом")
     differences: list[str] = []
     existing = {path.name: path for path in task_dir.glob("TASK-*.json")} if task_dir.is_dir() else {}
     expected_names = {f"{task_id}.json" for task_id in records}
+    contents = {f"{task_id}.json": serialized(record) for task_id, record in records.items()}
     for task_id, record in records.items():
         path = task_dir / f"{task_id}.json"
-        content = serialized(record)
+        content = contents[path.name]
         if not path.is_file() or path.read_text(encoding="utf-8") != content:
             differences.append(path.relative_to(root).as_posix())
-            if not check:
-                task_dir.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
     for name, path in existing.items():
         if name not in expected_names:
             differences.append(path.relative_to(root).as_posix())
-            if not check:
+    if differences and not check:
+        staging = Path(tempfile.mkdtemp(prefix=".tasks-", dir=root))
+        backup = staging.with_name(staging.name + "-previous")
+        try:
+            if task_dir.is_dir():
+                shutil.copytree(task_dir, staging, dirs_exist_ok=True)
+            for path in staging.glob("TASK-*.json"):
                 path.unlink()
+            for name, content in contents.items():
+                (staging / name).write_text(content, encoding="utf-8")
+            if task_dir.exists():
+                task_dir.rename(backup)
+            try:
+                staging.rename(task_dir)
+            except OSError:
+                if backup.exists():
+                    backup.rename(task_dir)
+                raise
+            if backup.exists():
+                shutil.rmtree(backup, ignore_errors=True)
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging)
+            if backup.exists():
+                if not task_dir.exists():
+                    backup.rename(task_dir)
+                else:
+                    shutil.rmtree(backup, ignore_errors=True)
     return sorted(differences)
 
 
