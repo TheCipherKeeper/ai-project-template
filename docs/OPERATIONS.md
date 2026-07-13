@@ -49,6 +49,47 @@ flowchart LR
 `risk:critical` дополнительно требуется актуальное одобрение отдельной учётной
 записи из `HUMAN_REVIEWER_LOGIN`.
 
+### Запуск независимого reviewer
+
+`tools/review/review.py` реализует отдельный Strands Agent. Он поддерживает нативный
+поставщик `ollama` и поставщик `openai` для любого OpenAI-совместимого API. Настройки
+загружаются из `tools/review/.env`; точный шаблон находится в
+`tools/review/.env.example`. Значения окружения процесса имеют приоритет над файлом.
+Файл `.env` не коммитится.
+
+Токен модели `REVIEW_MODEL_API_KEY` и токен GitHub
+`REVIEW_GITHUB_TOKEN` являются разными секретами. Для локальной Ollama токен модели
+не нужен. GitHub-токен принадлежит отдельной GitHub App или bot-учётной записи с
+правами `Contents: read` и `Pull requests: read and write`; её точный логин одинаково
+задаётся в `REVIEW_GITHUB_REVIEWER_LOGIN` локального reviewer и
+`AGENT_REVIEWER_LOGIN` продуктового репозитория.
+
+Reviewer получает только замкнутые инструменты чтения текущего PR: описание, diff,
+файл из точного head SHA и результаты GitHub checks. Модель не получает GitHub-токен,
+произвольную командную оболочку, запись файлов или публикацию review. Обычный код
+публикует `APPROVE` либо `REQUEST_CHANGES` только после проверки структурированного
+результата модели. `REVIEW_MAX_DIFF_BYTES` и `REVIEW_MAX_FILE_BYTES` ограничивают
+контекст; превышение требует уменьшить задачу, а не молча обрезать данные.
+
+Первый запуск выполняется без публикации:
+
+```bash
+cp tools/review/.env.example tools/review/.env
+uv run tools/review/review.py --repository owner/repository --pr 42 --dry-run
+```
+
+После проверки настроек один PR публикуется без `--dry-run`, а постоянное ожидание
+готовых PR запускается командой:
+
+```bash
+uv run tools/review/review.py --watch
+```
+
+Reviewer начинает анализ только после успешных checks из
+`REVIEW_REQUIRED_CHECKS`, по умолчанию `policy`, `lint` и `tests`. Итог привязывается
+к точному head SHA. Новый коммит требует нового review; публикация вызывает событие
+`pull_request_review`, после которого продуктовый конвейер продолжает `build`.
+
 Стадия `merge` выполняет слияние со свёрткой коммитов и удаляет рабочую ветку только
 после готового артефакта. Стадия `deploy` получает SHA созданного коммита слияния и
 тот же артефакт. Обычная поставка использует среду GitHub `test`; PR с меткой

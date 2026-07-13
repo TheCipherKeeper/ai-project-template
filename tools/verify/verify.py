@@ -29,6 +29,8 @@ REQUIRED_BY_TYPE = {
         "docs/OPERATIONS.md",
         "docs/REFERENCE.md",
         ".methodology.yml",
+        "tools/review/review.py",
+        "tools/review/.env.example",
     ),
     "hub": (
         "AGENTS.md",
