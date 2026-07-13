@@ -7,7 +7,7 @@
 2. [`WORKFLOW.md`](WORKFLOW.md) — открыть для выполнения любой задачи.
 3. [`ARCHITECTURE.md`](ARCHITECTURE.md) — открыть при изменении границ системы,
    контрактов или структуры кода.
-4. [`OPERATIONS.md`](OPERATIONS.md) — открыть при деплое, миграции, откате или
+4. [`OPERATIONS.md`](OPERATIONS.md) — открыть при развёртывании, миграции, откате или
    выпуске версии.
 5. [`REFERENCE.md`](REFERENCE.md) — команды, статусы, триггеры и форматы.
 6. [`../skeletons/README.md`](../skeletons/README.md) — выбрать тип репозитория и

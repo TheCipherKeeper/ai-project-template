@@ -1,4 +1,4 @@
-# Evidence
+# Свидетельства выполнения
 
-CI публикует evidence по формату `<methodology-repo>/docs/OPERATIONS.md`.
+CI публикует свидетельство выполнения по формату `<methodology-repo>/docs/OPERATIONS.md`.
 Секреты и персональные данные сюда не записываются.
