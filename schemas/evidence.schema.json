@@ -2,10 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "task_id", "run_id", "pr", "commit", "methodology_ref", "checks", "reviews", "attempts", "artifact", "deployment", "status", "created_at", "retained_until"],
+  "required": ["schema_version", "task_id", "repository", "run_id", "pr", "commit", "methodology_ref", "checks", "reviews", "attempts", "artifact", "deployment", "status", "created_at", "retained_until"],
   "properties": {
     "schema_version": { "const": 1 },
     "task_id": { "type": "string", "pattern": "^TASK-[0-9]{4,}$" },
+    "repository": { "type": "string", "pattern": "^https://[^/]+/.+/.+$" },
     "run_id": { "type": "string", "minLength": 1 },
     "pr": { "type": "string", "pattern": "^https://[^/]+/.+/pull/[0-9]+$" },
     "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
@@ -17,6 +18,7 @@
     },
     "reviews": {
       "type": "array",
+      "minItems": 1,
       "items": { "$ref": "#/$defs/review" }
     },
     "attempts": { "type": "integer", "minimum": 1, "maximum": 3 },
@@ -46,7 +48,7 @@
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "status": { "enum": ["passed", "failed", "not_applicable"] },
-        "source": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "pattern": "^https://[^/]+/.+" },
         "reviewer": { "type": "string", "minLength": 1 },
         "reason": { "type": "string", "minLength": 1 }
       },

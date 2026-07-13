@@ -53,7 +53,6 @@ REQUIRED_BY_TYPE = {
         ".methodology.yml",
         ".pipeline.json",
         ".github/workflows/verify.yml",
-        ".evidence/README.md",
         "docker-compose.yml",
     ),
     "interface": (
@@ -63,7 +62,6 @@ REQUIRED_BY_TYPE = {
         ".methodology.yml",
         ".pipeline.json",
         ".github/workflows/verify.yml",
-        ".evidence/README.md",
     ),
     "standalone": (
         "AGENTS.md",
@@ -72,7 +70,6 @@ REQUIRED_BY_TYPE = {
         ".methodology.yml",
         ".pipeline.json",
         ".github/workflows/verify.yml",
-        ".evidence/README.md",
     ),
 }
 SUPPORTED_TYPES = frozenset(REQUIRED_BY_TYPE)
@@ -149,6 +146,10 @@ def parse_args() -> argparse.Namespace:
         help="точный ref методологии, фактически загруженный CI",
     )
     parser.add_argument("--commit", help="commit, для которого создан evidence")
+    parser.add_argument(
+        "--finalization-base",
+        help="base SHA служебного PR task-finalization; включает проверку состава diff",
+    )
     return parser.parse_args()
 
 
@@ -424,22 +425,6 @@ def load_records(directory: Path, schema_name: str) -> tuple[dict[str, dict[str,
     return records, errors
 
 
-def commit_is_ancestor(root: Path, commit: object) -> bool:
-    """Проверить, что evidence ссылается на коммит в истории текущего HEAD."""
-    if not (root / ".git").exists() or not isinstance(commit, str):
-        return True
-    try:
-        completed = subprocess.run(
-            ["git", "-C", str(root), "merge-base", "--is-ancestor", commit, "HEAD"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-    except OSError:
-        return False
-    return completed.returncode == 0
-
-
 def commit_matches_head(root: Path, commit: object) -> bool:
     """Проверить точное соответствие переданного CI-коммита текущему HEAD."""
     if not isinstance(commit, str):
@@ -455,6 +440,61 @@ def commit_matches_head(root: Path, commit: object) -> bool:
     except OSError:
         return False
     return completed.returncode == 0 and completed.stdout.strip() == commit
+
+
+def finalization_diff_errors(root: Path, base: str) -> list[str]:
+    """Разрешить в финализации только backlog, одну task-проекцию и её evidence."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "diff", "--name-status", f"{base}...HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        return [f"git diff недоступен: {error}"]
+    if completed.returncode != 0:
+        return ["не удалось получить diff финализации"]
+    changes = {}
+    for line in completed.stdout.splitlines():
+        parts = line.strip().split("\t")
+        if len(parts) != 2:
+            return ["финализация содержит переименование или некорректный путь"]
+        status, path = parts
+        changes[path.replace("\\", "/")] = status
+    changed = set(changes)
+    task_files = {path for path in changed if re.fullmatch(r"\.tasks/TASK-[0-9]{4,}\.json", path)}
+    evidence_files = {path for path in changed if re.fullmatch(r"\.evidence/TASK-[0-9]{4,}\.json", path)}
+    expected = {"BACKLOG.md"} | task_files | evidence_files
+    errors = []
+    if changed != expected:
+        errors.append("финализация содержит файлы вне BACKLOG.md, .tasks и .evidence")
+    if len(task_files) != 1 or len(evidence_files) != 1:
+        errors.append("финализация требует ровно одну машинную задачу и одно evidence")
+    elif next(iter(task_files)).split("/")[-1] != next(iter(evidence_files)).split("/")[-1]:
+        errors.append("машинная задача и evidence относятся к разным TASK-NNNN")
+    else:
+        task_path = next(iter(task_files))
+        evidence_path = next(iter(evidence_files))
+        if changes.get("BACKLOG.md") != "M" or changes.get(task_path) != "M" or changes.get(evidence_path) != "A":
+            errors.append("BACKLOG и задача должны изменяться, а evidence — добавляться впервые")
+        try:
+            previous = subprocess.run(
+                ["git", "-C", str(root), "show", f"{base}:{task_path}"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True,
+            )
+            before = json.loads(previous.stdout)
+            after = json.loads((root / task_path).read_text(encoding="utf-8"))
+            evidence = json.loads((root / evidence_path).read_text(encoding="utf-8"))
+            task_id = Path(task_path).stem
+            if before.get("status") == "done" or after.get("status") != "done":
+                errors.append("задача должна перейти из незавершённого состояния в done")
+            if before.get("id") != task_id or after.get("id") != task_id or evidence.get("task_id") != task_id:
+                errors.append("содержимое задачи и evidence должно соответствовать имени TASK-NNNN")
+        except (OSError, subprocess.CalledProcessError, json.JSONDecodeError, AttributeError):
+            errors.append("не удалось проверить переход состояния финализируемой задачи")
+    return errors
 
 
 def forbidden_artifacts(root: Path, kind: str) -> list[str]:
@@ -553,6 +593,7 @@ def skeleton_errors(root: Path) -> list[str]:
         variants = {
             (root / "skeletons" / kind / relative).read_bytes()
             for kind in SKELETON_REQUIRED
+            if kind != "hub"
             if (root / "skeletons" / kind / relative).is_file()
         }
         if len(variants) > 1:
@@ -1221,7 +1262,12 @@ def backlog_errors(backlog_text: str) -> list[str]:
     return errors
 
 
-def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str | None = None) -> dict[str, object]:
+def run(
+    root: Path,
+    ci_methodology_ref: str | None = None,
+    expected_commit: str | None = None,
+    finalization_base: str | None = None,
+) -> dict[str, object]:
     checks: list[dict[str, str]] = []
     config, config_errors = methodology_config(root)
     kind = config.get("repository_type", "invalid")
@@ -1269,6 +1315,15 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
                 ".git/HEAD",
             )
         )
+    if finalization_base is not None:
+        finalization_errors = finalization_diff_errors(root, finalization_base)
+        checks.append(result(
+            "VER-019",
+            not finalization_errors,
+            "Служебный PR изменяет только одну задачу и её evidence"
+            if not finalization_errors else "Ошибки финализации: " + "; ".join(finalization_errors),
+            "BACKLOG.md, .tasks/TASK-NNNN.json, .evidence/TASK-NNNN.json",
+        ))
 
     if kind == "methodology":
         for item in FORBIDDEN_METHODOLOGY_ARTIFACTS:
@@ -1437,8 +1492,10 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
                 evidence_errors.append(f"{task_id}: evidence не связан с машинной задачей")
             if record.get("methodology_ref") != pinned_ref and kind != "methodology":
                 evidence_errors.append(f"{task_id}: methodology_ref не совпадает с .methodology.yml")
-            if not commit_is_ancestor(root, record.get("commit")):
-                evidence_errors.append(f"{task_id}: commit отсутствует в истории текущего HEAD")
+            repository = record.get("repository")
+            pr = record.get("pr")
+            if isinstance(repository, str) and isinstance(pr, str) and not pr.startswith(repository.rstrip("/") + "/pull/"):
+                evidence_errors.append(f"{task_id}: PR не принадлежит указанному продуктовому репозиторию")
             try:
                 created = datetime.fromisoformat(str(record.get("created_at", "")).replace("Z", "+00:00"))
                 retained = datetime.fromisoformat(str(record.get("retained_until", "")).replace("Z", "+00:00"))
@@ -1452,6 +1509,12 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
                 item.get("status") == "failed" for item in results + probes if isinstance(item, dict)
             ):
                 evidence_errors.append(f"{task_id}: passed evidence содержит failed результат")
+            if record.get("status") == "passed":
+                checks_passed = any(item.get("status") == "passed" for item in record.get("checks", []) if isinstance(item, dict))
+                reviews_passed = any(item.get("status") == "passed" for item in record.get("reviews", []) if isinstance(item, dict))
+                probes_passed = any(item.get("status") == "passed" for item in probes if isinstance(item, dict))
+                if not checks_passed or not reviews_passed or not probes_passed:
+                    evidence_errors.append(f"{task_id}: passed evidence требует успешные check, review и deployment probe")
         for task_id, task in tasks.items():
             if task.get("status") == "done":
                 if task_id not in evidence:
@@ -1480,7 +1543,7 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
 def main() -> int:
     args = parse_args()
     root = args.root.resolve()
-    report = run(root, args.methodology_ref, args.commit)
+    report = run(root, args.methodology_ref, args.commit, args.finalization_base)
     output = json.dumps(report, ensure_ascii=False, indent=2)
     if args.report:
         args.report.write_text(output + "\n", encoding="utf-8")

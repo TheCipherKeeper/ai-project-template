@@ -1,7 +1,7 @@
 name: product-pipeline
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
   pull_request_review:
     types: [submitted]
 
@@ -30,7 +30,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Verify policy
-        run: uv run .methodology-policy/tools/verify/verify.py --root ${{ github.workspace }} --methodology-ref "${{ vars.METHODOLOGY_VERSION }}" --commit "${{ github.event.pull_request.head.sha }}" --report verification.json
+        run: uv run .methodology-policy/tools/verify/verify.py --root ${{ github.workspace }} --methodology-ref "${{ vars.METHODOLOGY_VERSION }}" --commit "${{ github.event.pull_request.head.sha }}" ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') && format('--finalization-base {0}', github.event.pull_request.base.sha) || '' }} --report verification.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -52,7 +52,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Run lint
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: uv run .methodology-policy/tools/pipeline/run.py lint --commit "${{ github.event.pull_request.head.sha }}"
+      - name: Product lint not applicable to task finalization
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
+        run: echo "not_applicable"
 
   tests:
     needs: lint
@@ -69,7 +73,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Run tests
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: uv run .methodology-policy/tools/pipeline/run.py tests --commit "${{ github.event.pull_request.head.sha }}"
+      - name: Product tests not applicable to task finalization
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
+        run: echo "not_applicable"
 
   review:
     needs: tests
@@ -90,11 +98,17 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Read reviews
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" > reviews.json
       - name: Read labels
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: gh pr view "${{ github.event.pull_request.html_url }}" --json labels > labels.json
       - name: Verify independent approval
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: uv run .methodology-policy/tools/pipeline/run.py review --reviews reviews.json --labels labels.json --reviewer "$REVIEWER" --human-reviewer "$HUMAN_REVIEWER" --author "${{ github.event.pull_request.user.login }}" --commit "${{ github.event.pull_request.head.sha }}"
+      - name: Product review not applicable to task finalization
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
+        run: echo "not_applicable"
 
   build:
     needs: review
@@ -111,12 +125,17 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Build product
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: uv run .methodology-policy/tools/pipeline/run.py build --commit "${{ github.event.pull_request.head.sha }}"
       - uses: actions/upload-artifact@v4
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         with:
           name: build-${{ github.event.pull_request.head.sha }}
           path: .pipeline/product.zip
           include-hidden-files: true
+      - name: Product build not applicable to task finalization
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
+        run: echo "not_applicable"
 
   artifact:
     needs: build
@@ -133,12 +152,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: actions/download-artifact@v4
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         with:
           name: build-${{ github.event.pull_request.head.sha }}
           path: .pipeline
       - name: Record artifact digest
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: uv run .methodology-policy/tools/pipeline/run.py artifact --commit "${{ github.event.pull_request.head.sha }}"
       - uses: actions/upload-artifact@v4
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         with:
           name: product-${{ github.event.pull_request.head.sha }}
           path: |
@@ -146,6 +168,9 @@ jobs:
             .pipeline/product.zip.sha256
             .pipeline/artifact.json
           include-hidden-files: true
+      - name: Product artifact not applicable to task finalization
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
+        run: echo "not_applicable"
 
   merge:
     needs: artifact
@@ -191,8 +216,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: actions/download-artifact@v4
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         with:
           name: product-${{ github.event.pull_request.head.sha }}
           path: .pipeline
       - name: Deploy merge commit
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: uv run .methodology-policy/tools/pipeline/run.py deploy --commit "${{ needs.merge.outputs.commit }}" --artifact .pipeline/product.zip
+      - name: Product deploy not applicable to task finalization
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
+        run: echo "not_applicable"

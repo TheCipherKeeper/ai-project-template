@@ -5,8 +5,8 @@ import subprocess
 import sys
 
 from verify import (
-    commit_is_ancestor,
     commit_matches_head,
+    finalization_diff_errors,
     composition_errors,
     markdown_files,
     main,
@@ -755,6 +755,7 @@ def test_evidence_schema_requires_digest_sources_and_reviewer() -> None:
     schema = json.loads((Path(__file__).parents[2] / "schemas/evidence.schema.json").read_text(encoding="utf-8"))
     invalid = {
         "schema_version": 1, "task_id": "TASK-0001", "run_id": "1",
+        "repository": "https://github.com/acme/app",
         "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
         "methodology_ref": "v1.0.0", "checks": [{"name": "gate", "status": "passed"}],
         "reviews": [{"name": "review", "status": "passed", "source": "run:1"}],
@@ -791,6 +792,7 @@ def test_done_task_rejects_failed_evidence(tmp_path: Path) -> None:
     evidence.mkdir()
     (evidence / "TASK-0001.json").write_text(json.dumps({
         "schema_version": 1, "task_id": "TASK-0001", "run_id": "1",
+        "repository": "https://github.com/acme/app",
         "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
         "methodology_ref": "v1.0.0",
         "checks": [{"name": "gate", "status": "passed", "source": "run:1"}],
@@ -809,6 +811,34 @@ def test_done_task_rejects_failed_evidence(tmp_path: Path) -> None:
         and "требует evidence со статусом passed" in check["message"]
         for check in report["checks"]
     )
+
+
+def test_done_task_rejects_evidence_without_passed_results_or_matching_pr(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    backlog = (
+        "### TASK-0001. [x] — Задача\n\nЦелевой репозиторий: hub\nРиск: low\n"
+        "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
+        "Готово, когда:\n- x\n\nНе входит:\n- нет\n"
+    )
+    (tmp_path / "BACKLOG.md").write_text(backlog, encoding="utf-8")
+    sync(tmp_path)
+    evidence = tmp_path / ".evidence"
+    evidence.mkdir()
+    na = {"name": "check", "status": "not_applicable", "source": "https://ci.example/run/1", "reason": "нет"}
+    review = {**na, "name": "review", "reviewer": "agent"}
+    (evidence / "TASK-0001.json").write_text(json.dumps({
+        "schema_version": 1, "task_id": "TASK-0001", "repository": "https://github.com/acme/app",
+        "run_id": "1", "pr": "https://github.com/other/app/pull/1", "commit": "abcdef1",
+        "methodology_ref": "v1.0.0", "checks": [na], "reviews": [review], "attempts": 1,
+        "artifact": "sha256:" + "a" * 64,
+        "deployment": {"environment": "test", "probes": [na]}, "status": "passed",
+        "created_at": "2026-01-01T00:00:00Z", "retained_until": "2026-02-01T00:00:00Z",
+    }), encoding="utf-8")
+
+    report = run(tmp_path)
+    message = next(check["message"] for check in report["checks"] if check["id"] == "VER-013")
+    assert "PR не принадлежит" in message
+    assert "требует успешные check, review и deployment probe" in message
 
 
 def test_task_schema_requires_diagnostic_for_diagnostic_status() -> None:
@@ -850,16 +880,71 @@ def test_hub_composition_is_structurally_validated(tmp_path: Path) -> None:
     ]
 
 
-def test_evidence_commit_must_belong_to_repository_history() -> None:
+def test_ci_commit_must_match_repository_head() -> None:
     repository = Path(__file__).parents[2]
     head = subprocess.run(
         ["git", "-C", str(repository), "rev-parse", "HEAD"],
         capture_output=True, text=True, check=True,
     ).stdout.strip()
 
-    assert not commit_is_ancestor(repository, "0000000000000000000000000000000000000000")
     assert commit_matches_head(repository, head)
     assert not commit_matches_head(repository, "0000000000000000000000000000000000000000")
+
+
+def test_finalization_diff_allows_one_task_and_rejects_product_files(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Test"], check=True)
+    (tmp_path / "BACKLOG.md").write_text("ready\n", encoding="utf-8")
+    task_path = tmp_path / ".tasks/TASK-0001.json"
+    task_path.parent.mkdir(parents=True)
+    task_path.write_text(json.dumps({"id": "TASK-0001", "status": "ready"}), encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "initial"], check=True, capture_output=True)
+    base = subprocess.run(
+        ["git", "-C", str(tmp_path), "rev-parse", "HEAD"], check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    (tmp_path / "BACKLOG.md").write_text("done\n", encoding="utf-8")
+    task_path.write_text(json.dumps({"id": "TASK-0001", "status": "done"}), encoding="utf-8")
+    evidence = tmp_path / ".evidence/TASK-0001.json"
+    evidence.parent.mkdir()
+    evidence.write_text(json.dumps({"task_id": "TASK-0001"}), encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "finalize"], check=True, capture_output=True)
+
+    assert finalization_diff_errors(tmp_path, base) == []
+
+    (tmp_path / "product.py").write_text("print('unexpected')\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "product"], check=True, capture_output=True)
+    assert any("вне" in error for error in finalization_diff_errors(tmp_path, base))
+
+
+def test_finalization_rejects_existing_evidence_and_done_task(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Test"], check=True)
+    (tmp_path / "BACKLOG.md").write_text("done\n", encoding="utf-8")
+    task = tmp_path / ".tasks/TASK-0001.json"
+    task.parent.mkdir(parents=True)
+    task.write_text(json.dumps({"id": "TASK-0001", "status": "done"}), encoding="utf-8")
+    evidence = tmp_path / ".evidence/TASK-0001.json"
+    evidence.parent.mkdir()
+    evidence.write_text(json.dumps({"task_id": "TASK-0001", "status": "failed"}), encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "initial"], check=True, capture_output=True)
+    base = subprocess.run(
+        ["git", "-C", str(tmp_path), "rev-parse", "HEAD"], check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    (tmp_path / "BACKLOG.md").write_text("changed\n", encoding="utf-8")
+    task.write_text(json.dumps({"id": "TASK-0001", "status": "done", "changed": True}), encoding="utf-8")
+    evidence.write_text(json.dumps({"task_id": "TASK-0001", "status": "passed"}), encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "rewrite"], check=True, capture_output=True)
+
+    errors = finalization_diff_errors(tmp_path, base)
+    assert any("добавляться впервые" in error for error in errors)
+    assert any("незавершённого" in error for error in errors)
 
 
 def test_workflow_passes_pr_and_merge_commits_and_fetches_history() -> None:
