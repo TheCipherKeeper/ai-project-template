@@ -16,12 +16,7 @@
           "id": { "pattern": "^VER-[0-9]{3}$" },
           "status": { "enum": ["passed", "failed", "not_applicable"] },
           "message": { "type": "string" },
-          "location": { "type": "string" },
-          "rules": {
-            "type": "array",
-            "uniqueItems": true,
-            "items": { "pattern": "^[A-Z]+-[0-9]{3}$" }
-          }
+          "location": { "type": "string" }
         }
       }
     }

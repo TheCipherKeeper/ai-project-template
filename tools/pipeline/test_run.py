@@ -35,7 +35,6 @@ def config(root: Path) -> None:
 
 def test_build_artifact_and_deploy(tmp_path: Path) -> None:
     config(tmp_path)
-    (tmp_path / ".methodology.yml").write_text("repository_id: reports\n", encoding="utf-8")
     document = pipeline.load_config(tmp_path)
 
     pipeline.run_commands(document["lint"], tmp_path, {"commit": "abc1234"})
@@ -48,16 +47,6 @@ def test_build_artifact_and_deploy(tmp_path: Path) -> None:
     assert pipeline.record_artifact(tmp_path, "abc1234") == first
 
     pipeline.deploy(document, tmp_path, "def5678", archive)
-    delivery = pipeline.record_delivery(
-        tmp_path,
-        "def5678",
-        archive,
-        "https://github.com/acme/reports/pull/1",
-        "https://github.com/acme/reports/actions/runs/1",
-        "review-bot",
-        "test",
-    )
-    assert json.loads(delivery.read_text(encoding="utf-8"))["repository"] == "reports"
 
 
 def test_review_requires_current_head_and_separate_reviewer(tmp_path: Path) -> None:

@@ -10,7 +10,6 @@
       "type": "string",
       "pattern": "^(self|[0-9a-f]{7,40}|v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+)?)$"
     },
-    "repository_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
     "service_name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "service_language": { "enum": ["python", "go", "rust"] },
     "service_modules": {
@@ -18,15 +17,9 @@
       "pattern": "^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$"
     }
   },
-  "allOf": [
-    {
-      "if": { "properties": { "repository_type": { "enum": ["hub", "service", "interface", "standalone"] } } },
-      "then": { "required": ["repository_id"] }
-    },
-    {
-      "if": { "properties": { "repository_type": { "const": "service" } } },
-      "then": { "required": ["service_name", "service_language", "service_modules"] }
-    }
-  ],
+  "allOf": [{
+    "if": { "properties": { "repository_type": { "const": "service" } } },
+    "then": { "required": ["service_name", "service_language", "service_modules"] }
+  }],
   "additionalProperties": false
 }

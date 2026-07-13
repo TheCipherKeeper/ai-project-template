@@ -1,7 +1,6 @@
 schema_version: 1
 repository_type: service
 methodology_ref: <tag-or-commit>
-repository_id: <repository-id>
 service_name: <service>
 service_language: <python|go|rust>
 service_modules: <module>[,<module>...]

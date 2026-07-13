@@ -17,8 +17,6 @@ from urllib.parse import unquote
 POLICY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(POLICY_ROOT / "tools" / "tasks"))
 from sync import BacklogError, serialized, task_records  # noqa: E402
-from evidence import _is_ancestor as commit_is_ancestor  # noqa: E402
-from evidence import record_errors as evidence_record_errors  # noqa: E402
 
 REQUIRED_BY_TYPE = {
     "methodology": (
@@ -30,15 +28,9 @@ REQUIRED_BY_TYPE = {
         "docs/ARCHITECTURE.md",
         "docs/OPERATIONS.md",
         "docs/REFERENCE.md",
-        "docs/MAINTENANCE.md",
-        "docs/COVERAGE.md",
         ".methodology.yml",
         "tools/review/review.py",
         "tools/review/.env.example",
-        "tools/tasks/complete.py",
-        "tools/tasks/aggregate.py",
-        "tools/migrate/v1_to_v2.py",
-        "tools/skeletons/sync.py",
     ),
     "hub": (
         "AGENTS.md",
@@ -87,9 +79,8 @@ SUPPORTED_TYPES = frozenset(REQUIRED_BY_TYPE)
 EXACT_REF_PATTERN = re.compile(r"^(?:[0-9a-f]{7,40}|v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?)$")
 CONFIG_LINE_PATTERN = re.compile(r"^([a-z_]+):\s*(\S+)\s*$")
 BASE_CONFIG_KEYS = frozenset({"schema_version", "repository_type", "methodology_ref"})
-PRODUCT_CONFIG_KEYS = frozenset({"repository_id"})
 SERVICE_CONFIG_KEYS = frozenset({"service_name", "service_language", "service_modules"})
-CONFIG_KEYS = BASE_CONFIG_KEYS | PRODUCT_CONFIG_KEYS | SERVICE_CONFIG_KEYS
+CONFIG_KEYS = BASE_CONFIG_KEYS | SERVICE_CONFIG_KEYS
 SERVICE_LANGUAGES = frozenset({"python", "go", "rust"})
 SERVICE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 SKELETON_REQUIRED = {
@@ -186,10 +177,6 @@ def methodology_config(root: Path) -> tuple[dict[str, str], list[str]]:
     if missing:
         errors.append("нет полей: " + ", ".join(sorted(missing)))
     kind = values.get("repository_type")
-    if kind in {"hub", "service", "interface", "standalone"}:
-        repository_id = values.get("repository_id", "")
-        if repository_id != "<repository-id>" and not re.fullmatch(r"[a-z][a-z0-9_-]*", repository_id):
-            errors.append("для продуктового репозитория требуется допустимый repository_id")
     service_fields = SERVICE_CONFIG_KEYS & values.keys()
     if kind == "service":
         missing_service = SERVICE_CONFIG_KEYS - values.keys()
@@ -200,26 +187,13 @@ def methodology_config(root: Path) -> tuple[dict[str, str], list[str]]:
     return values, errors
 
 
-CHECK_RULES = {
-    "VER-006": ["CORE-001", "RISK-001"],
-    "VER-007": ["CHANGE-002"],
-    "VER-013": ["DONE-001"],
-    "VER-015": ["CHANGE-001"],
-    "VER-017": ["CHECK-001"],
-    "VER-018": ["CHECK-001", "GIT-001", "REVIEW-001"],
-}
-
-
-def result(check_id: str, passed: bool, message: str, location: str) -> dict[str, object]:
-    item: dict[str, object] = {
+def result(check_id: str, passed: bool, message: str, location: str) -> dict[str, str]:
+    return {
         "id": check_id,
         "status": "passed" if passed else "failed",
         "message": message,
         "location": location,
     }
-    if check_id in CHECK_RULES:
-        item["rules"] = CHECK_RULES[check_id]
-    return item
 
 
 def markdown_files(root: Path):
@@ -450,6 +424,22 @@ def load_records(directory: Path, schema_name: str) -> tuple[dict[str, dict[str,
     return records, errors
 
 
+def commit_is_ancestor(root: Path, commit: object) -> bool:
+    """Проверить, что evidence ссылается на коммит в истории текущего HEAD."""
+    if not (root / ".git").exists() or not isinstance(commit, str):
+        return True
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "merge-base", "--is-ancestor", commit, "HEAD"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except OSError:
+        return False
+    return completed.returncode == 0
+
+
 def commit_matches_head(root: Path, commit: object) -> bool:
     """Проверить точное соответствие переданного CI-коммита текущему HEAD."""
     if not isinstance(commit, str):
@@ -475,7 +465,7 @@ def forbidden_artifacts(root: Path, kind: str) -> list[str]:
         relative = path.relative_to(root)
         if kind == "methodology" and path.suffix.lower() in FORBIDDEN_SCRIPT_SUFFIXES:
             violations.append(str(relative))
-        if kind == "methodology" and relative.parts[0] == "skeletons":
+        if kind == "methodology" and "skeletons" in relative.parts:
             if path.name in FORBIDDEN_LOCK_NAMES or path.suffix.lower() in FORBIDDEN_SKELETON_SUFFIXES:
                 violations.append(str(relative))
     return sorted(set(violations))
@@ -530,8 +520,6 @@ def skeleton_errors(root: Path) -> list[str]:
             errors.append(f"skeletons/{directory}/.methodology.yml: неверные schema_version/repository_type")
         if config.get("methodology_ref") != "<tag-or-commit>":
             errors.append(f"skeletons/{directory}/.methodology.yml: требуется <tag-or-commit>")
-        if config.get("repository_id") != "<repository-id>":
-            errors.append(f"skeletons/{directory}/.methodology.yml: требуется <repository-id>")
         errors.extend(
             f"skeletons/{directory}/{error}"
             for error in pipeline_errors(skeleton, allow_placeholders=True)
@@ -1444,9 +1432,32 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
         )
         # README не является evidence; отсутствие JSON допустимо, пока нет done-задач.
         evidence_errors = [error for error in evidence_errors if "отсутствует каталог" not in error]
-        evidence_errors.extend(
-            evidence_record_errors(root, tasks, evidence, pinned_ref, kind, config.get("repository_id"))
-        )
+        for task_id, record in evidence.items():
+            if task_id not in tasks:
+                evidence_errors.append(f"{task_id}: evidence не связан с машинной задачей")
+            if record.get("methodology_ref") != pinned_ref and kind != "methodology":
+                evidence_errors.append(f"{task_id}: methodology_ref не совпадает с .methodology.yml")
+            if not commit_is_ancestor(root, record.get("commit")):
+                evidence_errors.append(f"{task_id}: commit отсутствует в истории текущего HEAD")
+            try:
+                created = datetime.fromisoformat(str(record.get("created_at", "")).replace("Z", "+00:00"))
+                retained = datetime.fromisoformat(str(record.get("retained_until", "")).replace("Z", "+00:00"))
+                if retained <= created:
+                    evidence_errors.append(f"{task_id}: retained_until должен быть позже created_at")
+            except (ValueError, TypeError):
+                pass  # Формат уже диагностирован валидатором схемы.
+            results = record.get("checks", []) + record.get("reviews", [])
+            probes = record.get("deployment", {}).get("probes", []) if isinstance(record.get("deployment"), dict) else []
+            if record.get("status") == "passed" and any(
+                item.get("status") == "failed" for item in results + probes if isinstance(item, dict)
+            ):
+                evidence_errors.append(f"{task_id}: passed evidence содержит failed результат")
+        for task_id, task in tasks.items():
+            if task.get("status") == "done":
+                if task_id not in evidence:
+                    evidence_errors.append(f"{task_id}: завершённая задача не имеет evidence")
+                elif evidence[task_id].get("status") != "passed":
+                    evidence_errors.append(f"{task_id}: завершённая задача требует evidence со статусом passed")
         checks.append(result("VER-013", not evidence_errors,
             "Evidence валиден, связан с задачами и контекстом CI" if not evidence_errors
             else "Ошибки evidence: " + "; ".join(evidence_errors), ".evidence/*.json"))

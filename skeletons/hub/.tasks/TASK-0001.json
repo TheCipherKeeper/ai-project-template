@@ -1,14 +1,12 @@
 {
-  "schema_version": 2,
+  "schema_version": 1,
   "id": "TASK-0001",
   "status": "ready",
   "goal": "Опиши наблюдаемый результат для пользователя или системы, не способ реализации.",
+  "target": "hub",
   "risk": "low",
   "autonomy": "auto-test-deploy",
   "rollback": "вернуть предыдущий хеш артефакта.",
-  "targets": [
-    "hub"
-  ],
   "acceptance_criteria": [
     "результат можно проверить;",
     "важный граничный случай учтён."

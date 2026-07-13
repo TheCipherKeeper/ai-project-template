@@ -196,16 +196,3 @@ jobs:
           path: .pipeline
       - name: Deploy merge commit
         run: uv run .methodology-policy/tools/pipeline/run.py deploy --commit "${{ needs.merge.outputs.commit }}" --artifact .pipeline/product.zip
-      - name: Record delivery evidence
-        run: >-
-          uv run .methodology-policy/tools/pipeline/run.py delivery
-          --commit "${{ needs.merge.outputs.commit }}"
-          --artifact .pipeline/product.zip
-          --pr "${{ github.event.pull_request.html_url }}"
-          --attestation "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          --reviewer "${{ vars.AGENT_REVIEWER_LOGIN }}"
-          --environment "${{ contains(github.event.pull_request.labels.*.name, 'risk:critical') && 'critical-test' || 'test' }}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: delivery-${{ github.event.pull_request.head.sha }}
-          path: .pipeline/delivery.json

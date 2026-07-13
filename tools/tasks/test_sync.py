@@ -8,13 +8,7 @@ from sync import BacklogError, sync, task_records
 
 BACKLOG = """### TASK-0042. [ ] ready — Экспорт
 
-#### Замысел человека
-
-Целевые репозитории:
-- reports
-
-#### Квалификация агента
-
+Целевой репозиторий: reports
 Риск: high
 Автономность: human-before-production
 Триггеры:
@@ -36,10 +30,10 @@ BACKLOG = """### TASK-0042. [ ] ready — Экспорт
 
 def test_task_records_parse_canonical_backlog() -> None:
     assert task_records(BACKLOG)["TASK-0042"] == {
-        "schema_version": 2,
+        "schema_version": 1,
         "id": "TASK-0042",
         "status": "ready",
-        "targets": ["reports"],
+        "target": "reports",
         "risk": "high",
         "autonomy": "human-before-production",
         "goal": "Пользователь выгружает отчёт.",
@@ -146,7 +140,7 @@ def test_task_records_enforce_risk_and_autonomy_policy() -> None:
 
 def test_diagnostic_status_requires_immediate_diagnostic() -> None:
     diagnostic = BACKLOG.replace("[ ] ready", "[ ] needs-input").replace(
-        "\n\n#### Замысел человека", "\n\nДиагностика: требуется выбор формата.\n\n#### Замысел человека"
+        "\n\nЦелевой репозиторий:", "\n\nДиагностика: требуется выбор формата.\n\nЦелевой репозиторий:"
     )
     record = task_records(diagnostic)["TASK-0042"]
     assert record["diagnostic"] == "требуется выбор формата."

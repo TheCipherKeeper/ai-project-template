@@ -275,20 +275,6 @@ def test_methodology_rejects_powershell_scripts(tmp_path: Path) -> None:
     )
 
 
-def test_methodology_allows_python_tool_named_skeletons(tmp_path: Path) -> None:
-    (tmp_path / ".methodology.yml").write_text(
-        "schema_version: 1\nrepository_type: methodology\nmethodology_ref: self\n",
-        encoding="utf-8",
-    )
-    tool = tmp_path / "tools" / "skeletons" / "sync.py"
-    tool.parent.mkdir(parents=True)
-    tool.write_text("pass\n", encoding="utf-8")
-
-    report = run(tmp_path)
-
-    assert next(check for check in report["checks"] if check["id"] == "VER-007")["status"] == "passed"
-
-
 def test_service_does_not_require_local_backlog(tmp_path: Path) -> None:
     (tmp_path / ".methodology.yml").write_text(
         "schema_version: 1\nrepository_type: service\nmethodology_ref: v1.0.0\n",
@@ -726,14 +712,14 @@ def test_hub_rejects_machine_task_not_generated_from_backlog(tmp_path: Path) -> 
     make_hub(tmp_path)
     (tmp_path / "BACKLOG.md").write_text(
         "### TASK-0001. [ ] ready — Задача\n\n"
-        "Целевые репозитории:\n- hub\nРиск: low\nАвтономность: auto-test-deploy\n"
+        "Целевой репозиторий: hub\nРиск: low\nАвтономность: auto-test-deploy\n"
         "Триггеры:\n- нет\n\nЦель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n",
         encoding="utf-8",
     )
     sync(tmp_path)
     task_path = tmp_path / ".tasks" / "TASK-0001.json"
     task = json.loads(task_path.read_text(encoding="utf-8"))
-    task["targets"] = ["other"]
+    task["target"] = "other"
     task_path.write_text(json.dumps(task, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     report = run(tmp_path)
@@ -755,7 +741,7 @@ def test_done_task_requires_evidence(tmp_path: Path) -> None:
     tasks = tmp_path / ".tasks"
     tasks.mkdir()
     (tasks / "TASK-0001.json").write_text(json.dumps({
-        "schema_version": 2, "id": "TASK-0001", "status": "done", "targets": ["hub"],
+        "schema_version": 1, "id": "TASK-0001", "status": "done", "target": "hub",
         "risk": "low", "autonomy": "auto-test-deploy", "goal": "x",
         "acceptance_criteria": ["x"], "out_of_scope": ["нет"]
     }), encoding="utf-8")
@@ -768,21 +754,19 @@ def test_done_task_requires_evidence(tmp_path: Path) -> None:
 def test_evidence_schema_requires_digest_sources_and_reviewer() -> None:
     schema = json.loads((Path(__file__).parents[2] / "schemas/evidence.schema.json").read_text(encoding="utf-8"))
     invalid = {
-        "schema_version": 2, "task_id": "TASK-0001", "run_id": "1",
-        "methodology_ref": "v1.0.0", "deliveries": [{
-            "repository": "hub", "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
-            "checks": [{"name": "gate", "status": "passed"}],
-            "reviews": [{"name": "review", "status": "passed", "source": "run:1"}],
-            "artifact": "image:latest",
-            "deployment": {"environment": "test", "probes": [{"name": "smoke", "status": "passed", "source": "run:1"}]}
-        }], "attempts": 1,
+        "schema_version": 1, "task_id": "TASK-0001", "run_id": "1",
+        "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
+        "methodology_ref": "v1.0.0", "checks": [{"name": "gate", "status": "passed"}],
+        "reviews": [{"name": "review", "status": "passed", "source": "run:1"}],
+        "attempts": 1, "artifact": "image:latest",
+        "deployment": {"environment": "test", "probes": [{"name": "smoke", "status": "passed", "source": "run:1"}]},
         "status": "passed", "created_at": "2026-01-01T00:00:00Z", "retained_until": "2026-02-01T00:00:00Z"
     }
 
     errors = validate_json(invalid, schema)
 
-    assert any("deliveries.0.checks.0.source" in error for error in errors)
-    assert any("deliveries.0.reviews.0.reviewer" in error for error in errors)
+    assert any("checks.0.source" in error for error in errors)
+    assert any("reviews.0.reviewer" in error for error in errors)
     assert any("artifact" in error for error in errors)
 
 
@@ -797,7 +781,7 @@ def test_date_time_requires_full_rfc3339_timestamp() -> None:
 def test_done_task_rejects_failed_evidence(tmp_path: Path) -> None:
     make_hub(tmp_path)
     backlog = (
-        "### TASK-0001. [x] — Задача\n\nЦелевые репозитории:\n- hub\nРиск: low\n"
+        "### TASK-0001. [x] — Задача\n\nЦелевой репозиторий: hub\nРиск: low\n"
         "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
         "Готово, когда:\n- x\n\nНе входит:\n- нет\n"
     )
@@ -806,15 +790,14 @@ def test_done_task_rejects_failed_evidence(tmp_path: Path) -> None:
     evidence = tmp_path / ".evidence"
     evidence.mkdir()
     (evidence / "TASK-0001.json").write_text(json.dumps({
-        "schema_version": 2, "task_id": "TASK-0001", "run_id": "1",
-        "methodology_ref": "v1.0.0", "deliveries": [{
-            "repository": "hub", "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
-            "checks": [{"name": "gate", "status": "passed", "source": "run:1"}],
-            "reviews": [], "artifact": "sha256:" + "a" * 64,
-            "deployment": {"environment": "test", "probes": [
-                {"name": "smoke", "status": "failed", "source": "run:1"}
-            ]}
-        }], "attempts": 1,
+        "schema_version": 1, "task_id": "TASK-0001", "run_id": "1",
+        "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
+        "methodology_ref": "v1.0.0",
+        "checks": [{"name": "gate", "status": "passed", "source": "run:1"}],
+        "reviews": [], "attempts": 1, "artifact": "sha256:" + "a" * 64,
+        "deployment": {"environment": "test", "probes": [
+            {"name": "smoke", "status": "failed", "source": "run:1"}
+        ]},
         "status": "failed", "created_at": "2026-01-01T00:00:00Z",
         "retained_until": "2026-02-01T00:00:00Z",
     }), encoding="utf-8")
@@ -831,7 +814,7 @@ def test_done_task_rejects_failed_evidence(tmp_path: Path) -> None:
 def test_task_schema_requires_diagnostic_for_diagnostic_status() -> None:
     schema = json.loads((Path(__file__).parents[2] / "schemas/task.schema.json").read_text(encoding="utf-8"))
     task = {
-        "schema_version": 2, "id": "TASK-0001", "status": "needs-input", "targets": ["hub"],
+        "schema_version": 1, "id": "TASK-0001", "status": "needs-input", "target": "hub",
         "risk": "low", "autonomy": "auto-test-deploy", "goal": "x",
         "acceptance_criteria": ["x"], "out_of_scope": ["нет"], "triggers": [],
     }

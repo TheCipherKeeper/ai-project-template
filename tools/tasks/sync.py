@@ -16,12 +16,12 @@ TASK_HEADING = re.compile(
 )
 SCALAR_FIELDS = {
     "Цель": "goal",
+    "Целевой репозиторий": "target",
     "Риск": "risk",
     "Автономность": "autonomy",
     "Откат": "rollback",
 }
 LIST_FIELDS = {
-    "Целевые репозитории": "targets",
     "Готово, когда": "acceptance_criteria",
     "Не входит": "out_of_scope",
     "Триггеры": "triggers",
@@ -40,7 +40,6 @@ AUTONOMY_RANK = {
     "human-before-production": 1,
     "human-before-merge": 2,
 }
-SECTION_HEADINGS = ("Замысел человека", "Квалификация агента")
 
 
 class BacklogError(ValueError):
@@ -49,9 +48,8 @@ class BacklogError(ValueError):
 
 def _field(block: str, label: str) -> str | None:
     labels = "|".join(re.escape(name) for name in (*SCALAR_FIELDS, *LIST_FIELDS, "Диагностика"))
-    sections = "|".join(re.escape(name) for name in SECTION_HEADINGS)
     match = re.search(
-        rf"^{re.escape(label)}:\s*(.*?)\s*(?=^(?:{labels}):|^#### (?:{sections})$|^## |\Z)",
+        rf"^{re.escape(label)}:\s*(.*?)\s*(?=^(?:{labels}):|^## |\Z)",
         block,
         re.MULTILINE | re.DOTALL,
     )
@@ -74,7 +72,7 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
         if task_id in records:
             raise BacklogError(f"повтор task ID: {task_id}")
         record: dict[str, object] = {
-            "schema_version": 2,
+            "schema_version": 1,
             "id": task_id,
             "status": "done" if match.group(2) else match.group(4),
         }

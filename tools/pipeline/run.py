@@ -216,63 +216,9 @@ def deploy(config: dict[str, object], root: Path, commit: str, artifact: Path) -
     run_commands(config["deploy"], root, variables)
 
 
-def repository_id(root: Path) -> str:
-    """Прочитать устойчивый идентификатор репозитория без YAML-зависимости."""
-    for line in (root / ".methodology.yml").read_text(encoding="utf-8").splitlines():
-        if line.startswith("repository_id:"):
-            value = line.split(":", 1)[1].strip()
-            if value and not value.startswith("<"):
-                return value
-    raise PipelineError("в .methodology.yml отсутствует настроенный repository_id")
-
-
-def record_delivery(
-    root: Path,
-    commit: str,
-    artifact: Path,
-    pr: str,
-    attestation: str,
-    reviewer: str,
-    environment: str,
-) -> Path:
-    """Создать машинную запись одной успешно поставленной версии."""
-    if not artifact.is_file() or not all(value.startswith("https://") for value in (pr, attestation)):
-        raise PipelineError("для delivery требуются артефакт и HTTPS-ссылки PR/CI")
-    if not reviewer or not environment:
-        raise PipelineError("для delivery требуются reviewer и environment")
-    source = attestation
-    document = {
-        "repository": repository_id(root),
-        "pr": pr,
-        "commit": commit,
-        "attestation": attestation,
-        "checks": [
-            {"name": name, "status": "passed", "source": source}
-            for name in ("policy", "lint", "tests", "build", "artifact")
-        ],
-        "reviews": [{
-            "name": "independent",
-            "status": "passed",
-            "source": pr,
-            "reviewer": reviewer,
-        }],
-        "artifact": f"sha256:{sha256(artifact)}",
-        "deployment": {
-            "environment": environment,
-            "probes": [
-                {"name": "deploy", "status": "passed", "source": source},
-            ],
-        },
-    }
-    path = root / ".pipeline/delivery.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return path
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=("lint", "tests", "build", "artifact", "review", "deploy", "delivery"))
+    parser.add_argument("stage", choices=("lint", "tests", "build", "artifact", "review", "deploy"))
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--commit", default="")
     parser.add_argument("--artifact", type=Path)
@@ -281,9 +227,6 @@ def main() -> int:
     parser.add_argument("--human-reviewer", default="")
     parser.add_argument("--author", default="")
     parser.add_argument("--labels", type=Path)
-    parser.add_argument("--pr", default="")
-    parser.add_argument("--attestation", default="")
-    parser.add_argument("--environment", default="")
     try:
         args = parser.parse_args()
         root = args.root.resolve()
@@ -315,13 +258,6 @@ def main() -> int:
             if args.artifact is None:
                 raise PipelineError("для deploy требуется --artifact")
             deploy(config, root, args.commit, args.artifact.resolve())
-        elif args.stage == "delivery":
-            if args.artifact is None:
-                raise PipelineError("для delivery требуется --artifact")
-            record_delivery(
-                root, args.commit, args.artifact.resolve(), args.pr, args.attestation,
-                args.reviewer, args.environment,
-            )
     except PipelineError as error:
         print(f"Ошибка конвейера: {error}", file=sys.stderr)
         return 1

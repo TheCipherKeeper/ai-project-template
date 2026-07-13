@@ -111,49 +111,27 @@ Reviewer начинает анализ только после успешных 
 Тег кандидата в выпуск для этого не нужен. Перед завершением задачи обязательны проверка готовности,
 быстрая проверка и дополнительные проверки, выбранные по условиям задачи.
 
-Минимальное агрегированное свидетельство выполнения:
+Минимальное свидетельство выполнения:
 
 ```yaml
-schema_version: 2
-task_id: TASK-0042
-run_id: run-42
-methodology_ref: v2.0.0
-deliveries:
-  - repository: reports
-    pr: https://github.com/example/reports/pull/42
-    commit: abc1234
-    attestation: https://github.com/example/reports/actions/runs/42
-    checks:
-      - name: gate
-        status: passed
-        source: https://github.com/example/reports/actions/runs/42
-    reviews:
-      - name: independent
-        status: passed
-        source: https://github.com/example/reports/pull/42#pullrequestreview-1
-        reviewer: agent-reviewer
-    artifact: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-    deployment:
-      environment: test
-      probes:
-        - name: smoke
-          status: passed
-          source: https://github.com/example/reports/actions/runs/42
-attempts: 1
-status: passed
-created_at: 2026-07-14T00:00:00Z
-retained_until: 2027-07-14T00:00:00Z
+task: TASK-0042
+commit: abc1234
+methodology: v1.0.0
+checks:
+  gate: passed
+  review: passed
+deployment:
+  environment: test
+  artifact: sha256:...
+  smoke: passed
 ```
 
-После успешного `deploy` продуктовый workflow создаёт `delivery.json` и публикует
-его как артефакт CI. Хабовый агрегатор объединяет такие записи в evidence; команда
-завершения сохраняет его рядом с задачей. Свидетельство не содержит секретов.
+Свидетельство создаётся автоматикой, не содержит секретов и хранится как артефакт CI
+или ссылка из результата задачи.
 
 Один объект свидетельства по `schemas/evidence.schema.json` обязательно содержит
-задачу, запуск завершения, точный `methodology_ref`, число попыток и массив `deliveries`.
-Каждая поставка содержит репозиторий, PR, коммит, HTTPS-ссылку `attestation` на запуск CI,
-результаты обязательных и независимых проверок
-с источниками, хеш артефакта и проверки развёртывания. Объект также содержит итоговый
+задачу, запуск CI, PR, коммит, точный `methodology_ref`, результаты обязательных и независимых проверок
+с источниками, число попыток, хеш артефакта, проверки развёртывания, итоговый
 статус, время создания и срок хранения. Для неприменимой проверки записывается
 `not_applicable` с причиной. Независимая проверка содержит идентификатор проверяющего.
 
