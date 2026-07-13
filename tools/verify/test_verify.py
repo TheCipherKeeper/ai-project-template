@@ -1,9 +1,15 @@
 from pathlib import Path
 
 import json
+import subprocess
+import sys
 
 from verify import (
+    commit_is_ancestor,
+    commit_matches_head,
+    composition_errors,
     markdown_files,
+    main,
     non_mermaid_diagrams,
     run,
     skeleton_errors,
@@ -107,6 +113,19 @@ def test_explicitly_typed_log_with_arrow_is_accepted(tmp_path: Path) -> None:
     log.write_text("```console\nworker --> ready\n```\n", encoding="utf-8")
 
     assert non_mermaid_diagrams(tmp_path) == []
+
+
+def test_unfenced_text_diagram_is_rejected(tmp_path: Path) -> None:
+    diagram = tmp_path / "ARCHITECTURE.md"
+    diagram.write_text("Контекст.\n\nA --> B\n", encoding="utf-8")
+
+    assert non_mermaid_diagrams(tmp_path) == ["ARCHITECTURE.md:3"]
+
+
+def test_markdown_files_ignore_directory_with_markdown_name(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").mkdir()
+
+    assert list(markdown_files(tmp_path)) == []
 
 
 def test_commonmark_fence_variants_are_rejected(tmp_path: Path) -> None:
@@ -255,7 +274,7 @@ def make_python_service(tmp_path: Path) -> None:
     (docs / "specs" / "orders.md").write_text("# Orders\n", encoding="utf-8")
     (docs / "ARCHITECTURE.md").write_text(
         "# Архитектура\n\n## Модули\n\n"
-        "| Модуль | Ответственность | Спека | Язык | Канонический корень | Проверка границ |\n"
+        "| Модуль | Ответственность | Спецификация | Язык | Канонический корень | Проверка границ |\n"
         "|---|---|---|---|---|---|\n"
         "| `orders` | Заказы | `docs/specs/orders.md` | python | `src/demo/orders/` | VER-015 |\n",
         encoding="utf-8",
@@ -361,7 +380,7 @@ def make_non_python_service(tmp_path: Path, language: str) -> None:
     root_path = "internal/orders/" if language == "go" else "src/orders/"
     (docs / "ARCHITECTURE.md").write_text(
         "# Архитектура\n\n## Модули\n\n"
-        "| Модуль | Ответственность | Спека | Язык | Канонический корень | Проверка границ |\n"
+        "| Модуль | Ответственность | Спецификация | Язык | Канонический корень | Проверка границ |\n"
         "|---|---|---|---|---|---|\n"
         f"| `orders` | Заказы | `docs/specs/orders.md` | {language} | `{root_path}` | VER-015 |\n",
         encoding="utf-8",
@@ -401,6 +420,19 @@ def make_non_python_service(tmp_path: Path, language: str) -> None:
 
 def test_go_service_accepts_canonical_architecture(tmp_path: Path) -> None:
     make_non_python_service(tmp_path, "go")
+
+    report = run(tmp_path)
+
+    assert any(check["id"] == "VER-015" and check["status"] == "passed" for check in report["checks"])
+
+
+def test_go_inner_layer_accepts_own_module_import(tmp_path: Path) -> None:
+    make_non_python_service(tmp_path, "go")
+    source = tmp_path / "internal" / "orders" / "application" / "handler.go"
+    source.write_text(
+        'package application\nimport "example.test/demo/internal/orders/ports/inbound"\n',
+        encoding="utf-8",
+    )
 
     report = run(tmp_path)
 
@@ -453,6 +485,23 @@ def test_rust_standard_grouped_use_is_accepted(tmp_path: Path) -> None:
     assert any(check["id"] == "VER-015" and check["status"] == "passed" for check in report["checks"])
 
 
+def test_rust_ignores_external_crate_names_in_comments_and_strings(tmp_path: Path) -> None:
+    make_non_python_service(tmp_path, "rust")
+    manifest = tmp_path / "Cargo.toml"
+    manifest.write_text(manifest.read_text(encoding="utf-8") + '\n[dependencies]\nsqlx = "1"\n', encoding="utf-8")
+    source = tmp_path / "src" / "orders" / "domain" / "mod.rs"
+    source.write_text(
+        '// sqlx::query("ignored");\n'
+        '/* outer /* inner */ sqlx::query("ignored"); */\n'
+        'const NOTE: &str = "sqlx::query";\n',
+        encoding="utf-8",
+    )
+
+    report = run(tmp_path)
+
+    assert any(check["id"] == "VER-015" and check["status"] == "passed" for check in report["checks"])
+
+
 def test_service_rejects_noncanonical_module_table(tmp_path: Path) -> None:
     make_python_service(tmp_path)
     architecture = tmp_path / "docs" / "ARCHITECTURE.md"
@@ -496,6 +545,16 @@ def test_python_composition_root_rejects_arbitrary_call(tmp_path: Path) -> None:
     make_python_service(tmp_path)
     bootstrap = tmp_path / "src" / "demo" / "bootstrap.py"
     bootstrap.write_text("delete_all_orders()\n", encoding="utf-8")
+
+    report = run(tmp_path)
+
+    assert any(check["id"] == "VER-015" and "управляющую логику" in check["message"] for check in report["checks"])
+
+
+def test_python_composition_root_rejects_factory_prefix_bypass(tmp_path: Path) -> None:
+    make_python_service(tmp_path)
+    bootstrap = tmp_path / "src" / "demo" / "bootstrap.py"
+    bootstrap.write_text("result = build_and_execute_business_logic()\n", encoding="utf-8")
 
     report = run(tmp_path)
 
@@ -685,3 +744,137 @@ def test_evidence_schema_requires_digest_sources_and_reviewer() -> None:
     assert any("checks.0.source" in error for error in errors)
     assert any("reviews.0.reviewer" in error for error in errors)
     assert any("artifact" in error for error in errors)
+
+
+def test_date_time_requires_full_rfc3339_timestamp() -> None:
+    schema = {"type": "string", "format": "date-time"}
+
+    assert validate_json("2026-01-01", schema)
+    assert validate_json("2026-01-01T00:00:00", schema)
+    assert validate_json("2026-01-01T00:00:00Z", schema) == []
+
+
+def test_done_task_rejects_failed_evidence(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    backlog = (
+        "### TASK-0001. [x] — Задача\n\nЦелевой репозиторий: hub\nРиск: low\n"
+        "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
+        "Готово, когда:\n- x\n\nНе входит:\n- нет\n"
+    )
+    (tmp_path / "BACKLOG.md").write_text(backlog, encoding="utf-8")
+    sync(tmp_path)
+    evidence = tmp_path / ".evidence"
+    evidence.mkdir()
+    (evidence / "TASK-0001.json").write_text(json.dumps({
+        "schema_version": 1, "task_id": "TASK-0001", "run_id": "1",
+        "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
+        "methodology_ref": "v1.0.0",
+        "checks": [{"name": "gate", "status": "passed", "source": "run:1"}],
+        "reviews": [], "attempts": 1, "artifact": "sha256:" + "a" * 64,
+        "deployment": {"environment": "test", "probes": [
+            {"name": "smoke", "status": "failed", "source": "run:1"}
+        ]},
+        "status": "failed", "created_at": "2026-01-01T00:00:00Z",
+        "retained_until": "2026-02-01T00:00:00Z",
+    }), encoding="utf-8")
+
+    report = run(tmp_path)
+
+    assert any(
+        check["id"] == "VER-013" and check["status"] == "failed"
+        and "требует evidence со статусом passed" in check["message"]
+        for check in report["checks"]
+    )
+
+
+def test_task_schema_requires_diagnostic_for_diagnostic_status() -> None:
+    schema = json.loads((Path(__file__).parents[2] / "schemas/task.schema.json").read_text(encoding="utf-8"))
+    task = {
+        "schema_version": 1, "id": "TASK-0001", "status": "needs-input", "target": "hub",
+        "risk": "low", "autonomy": "auto-test-deploy", "goal": "x",
+        "acceptance_criteria": ["x"], "out_of_scope": ["нет"], "triggers": [],
+    }
+
+    assert any("diagnostic" in error for error in validate_json(task, schema))
+    task["diagnostic"] = "требуется решение"
+    assert validate_json(task, schema) == []
+
+
+def test_hub_composition_is_structurally_validated(tmp_path: Path) -> None:
+    (tmp_path / "COMPOSITION.md").write_text(
+        "# Состав программы\n\n## Сервисы\n\n"
+        "| Сервис | Репозиторий | Версия/хеш | Роль | Публикует / Читает |\n"
+        "|---|---|---|---|---|\n"
+        "| api | https://github.com/acme/api | v1.2.3 | сервис-шлюз (`gateway`) | нет |\n\n"
+        "## Интерфейсы\n\n"
+        "| Интерфейс | Репозиторий | Версия/хеш | Визуализирует | Потребляет (сервис-шлюз/маршрут) |\n"
+        "|---|---|---|---|---|\n"
+        "| web | https://github.com/acme/web | abcdef1 | данные | api /v1/data |\n\n"
+        "## Автономные компоненты\n\n"
+        "| Компонент | Репозиторий | Версия/хеш | Форма | Назначение / поверхности |\n"
+        "|---|---|---|---|---|\n"
+        "| cli | https://github.com/acme/cli | sha256:" + "a" * 64 + " | cli | импорт |\n\n"
+        "## Зависимости (DAG)\n\n```mermaid\ngraph LR\n api --> web\n```\n",
+        encoding="utf-8",
+    )
+
+    errors, repositories = composition_errors(tmp_path)
+
+    assert errors == []
+    assert repositories == [
+        "https://github.com/acme/api", "https://github.com/acme/web", "https://github.com/acme/cli"
+    ]
+
+
+def test_evidence_commit_must_belong_to_repository_history() -> None:
+    repository = Path(__file__).parents[2]
+    head = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+    assert not commit_is_ancestor(repository, "0000000000000000000000000000000000000000")
+    assert commit_matches_head(repository, head)
+    assert not commit_matches_head(repository, "0000000000000000000000000000000000000000")
+
+
+def test_workflow_passes_exact_ci_commit_and_fetches_history() -> None:
+    root = Path(__file__).parents[2]
+    for kind in ("hub", "service", "interface", "standalone"):
+        workflow = (root / "skeletons" / kind / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
+        assert "fetch-depth: 0" in workflow
+        assert '--commit "${{ github.sha }}"' in workflow
+
+
+def test_composition_requires_mermaid_inside_dependency_section(tmp_path: Path) -> None:
+    (tmp_path / "COMPOSITION.md").write_text(
+        "# Состав\n\n```mermaid\ngraph LR\nA --> B\n```\n\n"
+        "## Сервисы\n\nнет\n\n## Интерфейсы\n\nнет\n\n"
+        "## Автономные компоненты\n\nнет\n\n## Зависимости (DAG)\n\nДиаграмма отсутствует.\n",
+        encoding="utf-8",
+    )
+
+    errors, _ = composition_errors(tmp_path)
+
+    assert "раздел зависимостей должен содержать диаграмму Mermaid" in errors
+
+
+def test_invalid_utf8_backlog_produces_failed_report(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    (tmp_path / "BACKLOG.md").write_bytes(b"\xff")
+
+    report = run(tmp_path)
+
+    assert report["status"] == "failed"
+    assert any(
+        check["id"] == "VER-006" and "невозможно прочитать" in check["message"]
+        for check in report["checks"]
+    )
+
+
+def test_cli_writes_report_and_returns_failure_code(tmp_path: Path, monkeypatch) -> None:
+    report = tmp_path / "verification.json"
+    monkeypatch.setattr(sys, "argv", ["verify.py", "--root", str(tmp_path), "--report", str(report)])
+
+    assert main() == 1
+    assert json.loads(report.read_text(encoding="utf-8"))["status"] == "failed"
