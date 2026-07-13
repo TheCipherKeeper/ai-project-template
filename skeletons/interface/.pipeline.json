@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "lint": [
+    ["corepack", "enable"],
+    ["pnpm", "install", "--frozen-lockfile"],
+    ["pnpm", "lint"],
+    ["pnpm", "exec", "tsc", "--noEmit"]
+  ],
+  "tests": [
+    ["corepack", "enable"],
+    ["pnpm", "install", "--frozen-lockfile"],
+    ["pnpm", "test"]
+  ],
+  "build": {
+    "commands": [
+      ["corepack", "enable"],
+      ["pnpm", "install", "--frozen-lockfile"],
+      ["pnpm", "build"]
+    ],
+    "outputs": ["dist"]
+  },
+  "deploy": [
+    ["<deploy-command>", "{artifact_dir}", "{commit}"]
+  ]
+}
