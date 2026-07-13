@@ -2,7 +2,13 @@ from pathlib import Path
 
 import json
 
-from verify import markdown_files, non_mermaid_diagrams, run, validate_json
+from verify import (
+    markdown_files,
+    non_mermaid_diagrams,
+    run,
+    skeleton_errors,
+    validate_json,
+)
 from sync import sync
 
 
@@ -28,6 +34,41 @@ def test_markdown_files_ignore_dependency_and_build_trees(tmp_path: Path) -> Non
         path.write_text("ignored", encoding="utf-8")
 
     assert list(markdown_files(tmp_path)) == [included]
+
+
+def test_skeletons_use_standalone_directory(tmp_path: Path) -> None:
+    standalone = tmp_path / "skeletons" / "standalone"
+    standalone.mkdir(parents=True)
+    (standalone / "AGENTS.md").write_text("ok\n", encoding="utf-8")
+
+    errors = skeleton_errors(tmp_path)
+
+    assert "skeletons/standalone/AGENTS.md" not in errors
+    assert not any(error.startswith("skeletons/stub/") for error in errors)
+
+
+def test_skeletons_reject_legacy_stub_directory_and_marker(tmp_path: Path) -> None:
+    legacy = tmp_path / "skeletons" / "stub"
+    legacy.mkdir(parents=True)
+    standalone = tmp_path / "skeletons" / "standalone"
+    standalone.mkdir(parents=True)
+    (standalone / ".env.example").write_text("<STUB>_PORT=8080\n", encoding="utf-8")
+
+    errors = skeleton_errors(tmp_path)
+
+    assert "skeletons/stub: устаревшее имя, используйте skeletons/standalone" in errors
+    assert "skeletons/standalone/.env.example: устаревший маркер stub" in errors
+
+
+def test_skeletons_reject_divergent_shared_workflow(tmp_path: Path) -> None:
+    for kind in ("hub", "service", "interface", "standalone"):
+        workflow = tmp_path / "skeletons" / kind / ".github" / "workflows" / "verify.yml"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text(f"name: {kind}\n", encoding="utf-8")
+
+    errors = skeleton_errors(tmp_path)
+
+    assert "skeletons/*/.github/workflows/verify.yml: общая заготовка рассинхронизирована" in errors
 
 
 def test_text_diagram_is_rejected(tmp_path: Path) -> None:

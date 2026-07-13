@@ -79,6 +79,9 @@ SERVICE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 SKELETON_REQUIRED = {
     kind: required for kind, required in REQUIRED_BY_TYPE.items() if kind != "methodology"
 }
+SHARED_SKELETON_FILES = (
+    ".github/workflows/verify.yml",
+)
 FORBIDDEN_SCRIPT_SUFFIXES = {".sh", ".ps1"}
 FORBIDDEN_SKELETON_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".java", ".js", ".jsx", ".py", ".rs", ".ts", ".tsx"
@@ -389,8 +392,11 @@ def forbidden_artifacts(root: Path, kind: str) -> list[str]:
 
 def skeleton_errors(root: Path) -> list[str]:
     errors = []
+    legacy_directory = root / "skeletons" / "stub"
+    if legacy_directory.exists():
+        errors.append("skeletons/stub: устаревшее имя, используйте skeletons/standalone")
     for kind, required in SKELETON_REQUIRED.items():
-        directory = "stub" if kind == "standalone" else kind
+        directory = kind
         skeleton = root / "skeletons" / directory
         for item in required:
             if not (skeleton / item).exists():
@@ -408,6 +414,25 @@ def skeleton_errors(root: Path) -> list[str]:
             or config.get("service_modules") != "<module>[,<module>...]"
         ):
             errors.append(f"skeletons/{directory}/.methodology.yml: неверные поля service")
+        if kind == "standalone" and skeleton.is_dir():
+            for path in skeleton.rglob("*"):
+                if not path.is_file():
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    continue
+                if re.search(r"\bstub\b|<STUB>", text, re.IGNORECASE):
+                    relative_path = path.relative_to(root).as_posix()
+                    errors.append(f"{relative_path}: устаревший маркер stub")
+    for relative in SHARED_SKELETON_FILES:
+        variants = {
+            (root / "skeletons" / kind / relative).read_bytes()
+            for kind in SKELETON_REQUIRED
+            if (root / "skeletons" / kind / relative).is_file()
+        }
+        if len(variants) > 1:
+            errors.append(f"skeletons/*/{relative}: общая заготовка рассинхронизирована")
     return errors
 
 

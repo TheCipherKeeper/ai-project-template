@@ -57,7 +57,7 @@
 ## Что можно менять
 
 - `docs/`, корневые `README.md` и `AGENTS.md`;
-- `skeletons/{hub,service,interface,stub}/`;
+- `skeletons/README.md` и `skeletons/{hub,service,interface,standalone}/`;
 - средство проверки и репозиторные инструменты на Python;
 - JSON-схемы и CI, необходимые для обязательной проверки.
 
