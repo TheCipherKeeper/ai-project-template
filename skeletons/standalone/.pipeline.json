@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "lint": [
+    ["<lint-command>"]
+  ],
+  "tests": [
+    ["<test-command>"]
+  ],
+  "build": {
+    "commands": [
+      ["<build-command>"]
+    ],
+    "outputs": ["<build-output>"]
+  },
+  "deploy": [
+    ["<deploy-command>", "{artifact_dir}", "{commit}"]
+  ]
+}

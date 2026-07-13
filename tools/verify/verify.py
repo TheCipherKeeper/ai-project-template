@@ -38,6 +38,7 @@ REQUIRED_BY_TYPE = {
         "COMPOSITION.md",
         "CONVENTIONS.md",
         ".methodology.yml",
+        ".pipeline.json",
         ".github/workflows/verify.yml",
         ".evidence/README.md",
         "docker-compose.yml",
@@ -48,6 +49,7 @@ REQUIRED_BY_TYPE = {
         "docs/ARCHITECTURE.md",
         "Dockerfile",
         ".methodology.yml",
+        ".pipeline.json",
         ".github/workflows/verify.yml",
         ".evidence/README.md",
         "docker-compose.yml",
@@ -57,6 +59,7 @@ REQUIRED_BY_TYPE = {
         "README.md",
         "docs/ARCHITECTURE.md",
         ".methodology.yml",
+        ".pipeline.json",
         ".github/workflows/verify.yml",
         ".evidence/README.md",
     ),
@@ -65,6 +68,7 @@ REQUIRED_BY_TYPE = {
         "README.md",
         "docs/ARCHITECTURE.md",
         ".methodology.yml",
+        ".pipeline.json",
         ".github/workflows/verify.yml",
         ".evidence/README.md",
     ),
@@ -83,6 +87,15 @@ SKELETON_REQUIRED = {
 SHARED_SKELETON_FILES = (
     ".github/workflows/verify.yml",
 )
+PIPELINE_NEEDS = {
+    "lint": "policy",
+    "tests": "lint",
+    "review": "tests",
+    "build": "review",
+    "artifact": "build",
+    "merge": "artifact",
+    "deploy": "merge",
+}
 FORBIDDEN_SCRIPT_SUFFIXES = {".sh", ".ps1"}
 FORBIDDEN_SKELETON_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cs", ".go", ".java", ".js", ".jsx", ".py", ".rs", ".ts", ".tsx"
@@ -456,6 +469,37 @@ def forbidden_artifacts(root: Path, kind: str) -> list[str]:
     return sorted(set(violations))
 
 
+def pipeline_errors(root: Path, allow_placeholders: bool = False) -> list[str]:
+    """Проверить конфигурацию и блокирующий порядок продуктового конвейера."""
+    errors: list[str] = []
+    config_path = root / ".pipeline.json"
+    try:
+        document = json.loads(config_path.read_text(encoding="utf-8"))
+        schema = json.loads((POLICY_ROOT / "schemas/pipeline.schema.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        return [f".pipeline.json: {error}"]
+    errors.extend(f".pipeline.json: {error}" for error in validate_json(document, schema))
+    if not allow_placeholders and re.search(r"<[^>]+>", json.dumps(document, ensure_ascii=False)):
+        errors.append(".pipeline.json: остались маркеры первичной настройки")
+
+    workflow = root / ".github/workflows/verify.yml"
+    try:
+        text = workflow.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        errors.append(f".github/workflows/verify.yml: {error}")
+        return errors
+    for job, dependency in PIPELINE_NEEDS.items():
+        pattern = rf"(?ms)^  {job}:\s*$.*?^    needs:\s*{dependency}\s*$"
+        if not re.search(pattern, text):
+            errors.append(f".github/workflows/verify.yml: {job} должен зависеть от {dependency}")
+    for stage in ("lint", "tests", "review", "build", "artifact", "deploy"):
+        if f"tools/pipeline/run.py {stage}" not in text:
+            errors.append(f".github/workflows/verify.yml: стадия {stage} не вызывает исполнитель")
+    if 'gh pr merge "$PR_URL" --squash --delete-branch' not in text:
+        errors.append(".github/workflows/verify.yml: merge не выполняет squash-слияние")
+    return errors
+
+
 def skeleton_errors(root: Path) -> list[str]:
     errors = []
     legacy_directory = root / "skeletons" / "stub"
@@ -474,6 +518,10 @@ def skeleton_errors(root: Path) -> list[str]:
             errors.append(f"skeletons/{directory}/.methodology.yml: неверные schema_version/repository_type")
         if config.get("methodology_ref") != "<tag-or-commit>":
             errors.append(f"skeletons/{directory}/.methodology.yml: требуется <tag-or-commit>")
+        errors.extend(
+            f"skeletons/{directory}/{error}"
+            for error in pipeline_errors(skeleton, allow_placeholders=True)
+        )
         if kind == "service" and (
             config.get("service_name") != "<service>"
             or config.get("service_language") != "<python|go|rust>"
@@ -1308,6 +1356,19 @@ def run(root: Path, ci_methodology_ref: str | None = None, expected_commit: str 
                 if not architecture_errors
                 else "Нарушения архитектуры сервиса: " + "; ".join(architecture_errors),
                 "src/, internal/, cmd/, tests/",
+            )
+        )
+
+    if kind in {"hub", "service", "interface", "standalone"}:
+        product_pipeline_errors = pipeline_errors(root)
+        checks.append(
+            result(
+                "VER-018",
+                not product_pipeline_errors,
+                "Продуктовый конвейер настроен и имеет блокирующий порядок стадий"
+                if not product_pipeline_errors
+                else "Ошибки продуктового конвейера: " + "; ".join(product_pipeline_errors),
+                ".pipeline.json, .github/workflows/verify.yml",
             )
         )
 

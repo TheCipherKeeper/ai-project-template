@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "lint", "tests", "build", "deploy"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "lint": { "$ref": "#/$defs/commands" },
+    "tests": { "$ref": "#/$defs/commands" },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commands", "outputs"],
+      "properties": {
+        "commands": { "$ref": "#/$defs/commands" },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "deploy": { "$ref": "#/$defs/commands" }
+  },
+  "$defs": {
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

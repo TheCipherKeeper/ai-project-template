@@ -11,6 +11,7 @@ from verify import (
     markdown_files,
     main,
     non_mermaid_diagrams,
+    pipeline_errors,
     run,
     skeleton_errors,
     validate_json,
@@ -75,6 +76,29 @@ def test_skeletons_reject_divergent_shared_workflow(tmp_path: Path) -> None:
     errors = skeleton_errors(tmp_path)
 
     assert "skeletons/*/.github/workflows/verify.yml: общая заготовка рассинхронизирована" in errors
+
+
+def test_pipeline_rejects_unconfigured_markers(tmp_path: Path) -> None:
+    source = Path(__file__).resolve().parents[2] / "skeletons" / "service"
+    subprocess.run([sys.executable, "-c", "import shutil,sys; shutil.copytree(sys.argv[1],sys.argv[2])", str(source), str(tmp_path / "service")], check=True)
+
+    errors = pipeline_errors(tmp_path / "service")
+
+    assert ".pipeline.json: остались маркеры первичной настройки" in errors
+
+
+def test_pipeline_rejects_broken_stage_order(tmp_path: Path) -> None:
+    source = Path(__file__).resolve().parents[2] / "skeletons" / "hub"
+    subprocess.run([sys.executable, "-c", "import shutil,sys; shutil.copytree(sys.argv[1],sys.argv[2])", str(source), str(tmp_path / "hub")], check=True)
+    workflow = tmp_path / "hub" / ".github" / "workflows" / "verify.yml"
+    workflow.write_text(
+        workflow.read_text(encoding="utf-8").replace("    needs: review\n", "    needs: tests\n", 1),
+        encoding="utf-8",
+    )
+
+    errors = pipeline_errors(tmp_path / "hub")
+
+    assert ".github/workflows/verify.yml: build должен зависеть от review" in errors
 
 
 def test_text_diagram_is_rejected(tmp_path: Path) -> None:
@@ -838,12 +862,14 @@ def test_evidence_commit_must_belong_to_repository_history() -> None:
     assert not commit_matches_head(repository, "0000000000000000000000000000000000000000")
 
 
-def test_workflow_passes_exact_ci_commit_and_fetches_history() -> None:
+def test_workflow_passes_pr_and_merge_commits_and_fetches_history() -> None:
     root = Path(__file__).parents[2]
     for kind in ("hub", "service", "interface", "standalone"):
         workflow = (root / "skeletons" / kind / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
         assert "fetch-depth: 0" in workflow
-        assert '--commit "${{ github.sha }}"' in workflow
+        assert "ref: ${{ github.event.pull_request.head.sha }}" in workflow
+        assert '--commit "${{ github.event.pull_request.head.sha }}"' in workflow
+        assert '--commit "${{ needs.merge.outputs.commit }}"' in workflow
 
 
 def test_composition_requires_mermaid_inside_dependency_section(tmp_path: Path) -> None:
