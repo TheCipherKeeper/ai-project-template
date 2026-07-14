@@ -506,7 +506,14 @@ def forbidden_artifacts(root: Path, kind: str) -> list[str]:
         if kind == "methodology" and path.suffix.lower() in FORBIDDEN_SCRIPT_SUFFIXES:
             violations.append(str(relative))
         if kind == "methodology" and "skeletons" in relative.parts:
-            if path.name in FORBIDDEN_LOCK_NAMES or path.suffix.lower() in FORBIDDEN_SKELETON_SUFFIXES:
+            skeleton_index = relative.parts.index("skeletons")
+            skeleton_relative = relative.parts[skeleton_index + 2 :]
+            repository_tool = bool(skeleton_relative and skeleton_relative[0] == "tools")
+            forbidden_source = (
+                path.suffix.lower() in FORBIDDEN_SKELETON_SUFFIXES
+                and not (repository_tool and path.suffix.lower() == ".py")
+            )
+            if path.name in FORBIDDEN_LOCK_NAMES or forbidden_source:
                 violations.append(str(relative))
     return sorted(set(violations))
 

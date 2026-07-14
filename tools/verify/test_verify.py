@@ -275,6 +275,37 @@ def test_methodology_rejects_powershell_scripts(tmp_path: Path) -> None:
     )
 
 
+def test_methodology_allows_python_repository_tool_in_skeleton(tmp_path: Path) -> None:
+    (tmp_path / ".methodology.yml").write_text(
+        "schema_version: 1\nrepository_type: methodology\nmethodology_ref: self\n",
+        encoding="utf-8",
+    )
+    tool = tmp_path / "skeletons" / "hub" / "tools" / "run_task.py"
+    tool.parent.mkdir(parents=True)
+    tool.write_text("print('tool')\n", encoding="utf-8")
+
+    report = run(tmp_path)
+
+    forbidden = next(check for check in report["checks"] if check["id"] == "VER-007")
+    assert forbidden["status"] == "passed"
+
+
+def test_methodology_still_rejects_python_application_code_in_skeleton(tmp_path: Path) -> None:
+    (tmp_path / ".methodology.yml").write_text(
+        "schema_version: 1\nrepository_type: methodology\nmethodology_ref: self\n",
+        encoding="utf-8",
+    )
+    application = tmp_path / "skeletons" / "hub" / "src" / "application.py"
+    application.parent.mkdir(parents=True)
+    application.write_text("print('application')\n", encoding="utf-8")
+
+    report = run(tmp_path)
+
+    forbidden = next(check for check in report["checks"] if check["id"] == "VER-007")
+    assert forbidden["status"] == "failed"
+    assert "skeletons\\hub\\src\\application.py" in forbidden["message"] or "skeletons/hub/src/application.py" in forbidden["message"]
+
+
 def test_service_does_not_require_local_backlog(tmp_path: Path) -> None:
     (tmp_path / ".methodology.yml").write_text(
         "schema_version: 1\nrepository_type: service\nmethodology_ref: v1.0.0\n",
