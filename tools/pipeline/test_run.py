@@ -81,3 +81,13 @@ def test_critical_review_requires_human_approval(tmp_path: Path) -> None:
     labels.write_text(json.dumps({"labels": [{"name": "risk:critical"}]}), encoding="utf-8")
 
     pipeline.verify_review(reviews, "review-agent", "author-agent", "abc1234", labels, "human")
+
+
+
+def test_low_risk_skips_independent_review(tmp_path: Path) -> None:
+    reviews = tmp_path / "reviews.json"
+    reviews.write_text("[]", encoding="utf-8")
+    labels = tmp_path / "labels.json"
+    labels.write_text(json.dumps({"labels": [{"name": "risk:low"}]}), encoding="utf-8")
+
+    pipeline.verify_review(reviews, "", "author-agent", "abc1234", labels)

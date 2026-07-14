@@ -133,32 +133,21 @@ def inside(root: Path, relative: str) -> Path:
     return candidate
 
 
-def sync_tasks(settings: Settings, hub: Path) -> None:
-    command = [
-        "uv",
-        "run",
-        str(settings.methodology / "tools" / "tasks" / "sync.py"),
-        "--root",
-        str(hub),
-    ]
-    result = subprocess.run(command, cwd=hub, text=True, capture_output=True, timeout=120, check=False)
-    if result.returncode:
-        detail = (result.stderr or result.stdout).strip()
-        raise TaskAgentError(f"синхронизация .tasks завершилась ошибкой: {detail}")
-
-
-def first_ready_task(hub: Path) -> dict[str, object]:
+def first_ready_task_block(hub: Path) -> str:
     backlog = (hub / "BACKLOG.md").read_text(encoding="utf-8")
     match = READY_TASK.search(backlog)
     if match is None:
         raise TaskAgentError("в BACKLOG.md нет задачи [ ] ready")
-    task_path = hub / ".tasks" / f"{match.group(1)}.json"
-    if not task_path.is_file():
-        raise TaskAgentError(f"синхронизатор не создал {task_path.relative_to(hub)}")
-    task = json.loads(task_path.read_text(encoding="utf-8"))
-    if not isinstance(task, dict) or task.get("status") != "ready":
-        raise TaskAgentError(f"некорректная машинная запись задачи: {task_path}")
-    return task
+    tail = backlog[match.start():]
+    cutoffs = []
+    next_task = re.search(r"\n### ", tail[1:])
+    if next_task:
+        cutoffs.append(next_task.start() + 1)
+    section = tail.find("\n## ")
+    if section != -1:
+        cutoffs.append(section)
+    end = min(cutoffs) if cutoffs else len(tail)
+    return tail[:end].strip()
 
 
 def create_agent(settings: Settings, hub: Path):
@@ -256,13 +245,9 @@ def main() -> int:
         if not (hub / "BACKLOG.md").is_file() or not (hub / ".methodology.yml").is_file():
             raise TaskAgentError("команда должна запускаться из корня хаба")
         settings = Settings.load(hub)
-        sync_tasks(settings, hub)
-        task = first_ready_task(hub)
+        task_block = first_ready_task_block(hub)
         agent = create_agent(settings, hub)
-        result = agent(
-            "Выполни эту первую готовую задачу хаба:\n"
-            + json.dumps(task, ensure_ascii=False, indent=2)
-        )
+        result = agent("Выполни эту первую готовую задачу хаба:\n" + task_block)
         print(result)
     except (OSError, ValueError, json.JSONDecodeError, subprocess.SubprocessError, TaskAgentError) as error:
         print(f"Ошибка исполнителя задачи: {error}", file=sys.stderr)
