@@ -15,8 +15,6 @@ from urllib.parse import unquote
 
 
 POLICY_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(POLICY_ROOT / "tools" / "tasks"))
-from sync import BacklogError, serialized, task_records  # noqa: E402
 
 REQUIRED_BY_TYPE = {
     "methodology": (
@@ -36,7 +34,6 @@ REQUIRED_BY_TYPE = {
         "AGENTS.md",
         "README.md",
         "BACKLOG.md",
-        ".tasks",
         "COMPOSITION.md",
         "CONVENTIONS.md",
         ".methodology.yml",
@@ -130,6 +127,126 @@ INLINE_TEXT_DIAGRAM_PATTERN = re.compile(
 RFC3339_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
 )
+
+
+TASK_HEADING = re.compile(
+    r"^### (TASK-[0-9]{4,})\. (?:(\[x\])|(\[ \] (ready|needs-input|blocked-external|automation-failed|retry-exhausted))) — .+$"
+)
+TASK_SCALAR_FIELDS = {
+    "Цель": "goal",
+    "Целевой репозиторий": "target",
+    "Риск": "risk",
+    "Автономность": "autonomy",
+    "Откат": "rollback",
+}
+TASK_LIST_FIELDS = {
+    "Готово, когда": "acceptance_criteria",
+    "Не входит": "out_of_scope",
+    "Триггеры": "triggers",
+}
+TASK_ALLOWED_VALUES = {
+    "risk": {"low", "medium", "high", "critical"},
+    "autonomy": {"auto-test-deploy", "human-before-production", "human-before-merge"},
+    "triggers": {"architecture", "contract", "data", "infrastructure", "security"},
+}
+TASK_DIAGNOSTIC_STATUSES = {"needs-input", "blocked-external", "automation-failed", "retry-exhausted"}
+TASK_HIGH_RISK_TRIGGERS = {"contract", "data", "security"}
+TASK_AUTONOMY_RANK = {"auto-test-deploy": 0, "human-before-production": 1, "human-before-merge": 2}
+
+
+class BacklogError(ValueError):
+    """BACKLOG нельзя однозначно разобрать на задачи."""
+
+
+def _backlog_field(block: str, label: str) -> str | None:
+    labels = "|".join(re.escape(name) for name in (*TASK_SCALAR_FIELDS, *TASK_LIST_FIELDS, "Диагностика"))
+    match = re.search(
+        rf"^{re.escape(label)}:\s*(.*?)\s*(?=^(?:{labels}):|^## |\Z)",
+        block,
+        re.MULTILINE | re.DOTALL,
+    )
+    return match.group(1).strip() if match else None
+
+
+def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
+    records: dict[str, dict[str, object]] = {}
+    task_like_headings = re.findall(r"^#{1,6}\s+task-[^\n]*$", backlog_text, re.MULTILINE | re.IGNORECASE)
+    malformed = [heading for heading in task_like_headings if not TASK_HEADING.fullmatch(heading)]
+    if malformed:
+        raise BacklogError(f"некорректный заголовок: {malformed[0]}")
+    blocks = re.split(r"(?=^### TASK-)", backlog_text, flags=re.MULTILINE)[1:]
+    for block in blocks:
+        heading = block.splitlines()[0]
+        match = TASK_HEADING.fullmatch(heading)
+        if not match:
+            raise BacklogError(f"некорректный заголовок: {heading}")
+        task_id = match.group(1)
+        if task_id in records:
+            raise BacklogError(f"повтор task ID: {task_id}")
+        record: dict[str, object] = {
+            "schema_version": 1,
+            "id": task_id,
+            "status": "done" if match.group(2) else match.group(4),
+        }
+        for label in (*TASK_SCALAR_FIELDS, *TASK_LIST_FIELDS, "Диагностика"):
+            if len(re.findall(rf"^{re.escape(label)}:", block, re.MULTILINE)) > 1:
+                raise BacklogError(f"{task_id}: поле «{label}» указано несколько раз")
+        status = str(record["status"])
+        diagnostic = _backlog_field(block, "Диагностика")
+        first_content = next((line.strip() for line in block.splitlines()[1:] if line.strip()), "")
+        if status in TASK_DIAGNOSTIC_STATUSES:
+            if not diagnostic:
+                raise BacklogError(f"{task_id}: диагностический статус требует поле «Диагностика»")
+            if (
+                not first_content.startswith("Диагностика:")
+                or not first_content.removeprefix("Диагностика:").strip()
+            ):
+                raise BacklogError(f"{task_id}: поле «Диагностика» должно идти сразу после заголовка")
+            record["diagnostic"] = " ".join(diagnostic.splitlines())
+        for label, key in TASK_SCALAR_FIELDS.items():
+            value = _backlog_field(block, label)
+            if value:
+                record[key] = " ".join(value.splitlines())
+            elif key != "rollback":
+                raise BacklogError(f"{task_id}: отсутствует поле «{label}»")
+        for label, key in TASK_LIST_FIELDS.items():
+            value = _backlog_field(block, label)
+            if value is None:
+                raise BacklogError(f"{task_id}: отсутствует поле «{label}»")
+            if key == "triggers" and value == "- нет":
+                record[key] = []
+                continue
+            lines = [line for line in value.splitlines() if line.strip()]
+            unexpected = [line for line in lines if not line.startswith("- ")]
+            if unexpected:
+                raise BacklogError(
+                    f"{task_id}: поле «{label}» содержит неподдерживаемую строку: {unexpected[0].strip()}"
+                )
+            items = [line[2:].strip() for line in lines]
+            if not items or any(not item for item in items):
+                raise BacklogError(f"{task_id}: поле «{label}» должно быть списком")
+            if len(items) != len(set(items)):
+                raise BacklogError(f"{task_id}: поле «{label}» содержит повторяющиеся элементы")
+            record[key] = items
+        for key, allowed in TASK_ALLOWED_VALUES.items():
+            values = record[key] if isinstance(record[key], list) else [record[key]]
+            invalid = [value for value in values if value not in allowed]
+            if invalid:
+                raise BacklogError(f"{task_id}: недопустимое значение {key}: {invalid[0]}")
+        triggers = set(record["triggers"])
+        risk = str(record["risk"])
+        autonomy = str(record["autonomy"])
+        if triggers & TASK_HIGH_RISK_TRIGGERS and risk not in {"high", "critical"}:
+            raise BacklogError(
+                f"{task_id}: триггеры contract, data и security требуют риск high или critical"
+            )
+        minimum_autonomy = 2 if risk == "critical" else 1 if risk == "high" else 0
+        if TASK_AUTONOMY_RANK[autonomy] < minimum_autonomy:
+            raise BacklogError(f"{task_id}: автономность слишком широка для риска {risk}")
+        records[task_id] = record
+    if not records:
+        raise BacklogError("нет ни одной задачи TASK-NNNN")
+    return records
 
 
 def parse_args() -> argparse.Namespace:
@@ -442,14 +559,26 @@ def commit_matches_head(root: Path, commit: object) -> bool:
     return completed.returncode == 0 and completed.stdout.strip() == commit
 
 
+def _task_status_in_backlog(backlog_text: str, task_id: str) -> str | None:
+    pattern = re.compile(
+        rf"^### {re.escape(task_id)}\. (?:\[ \] (ready|needs-input|blocked-external|automation-failed|retry-exhausted)|\[x\]) — .+$",
+        re.MULTILINE,
+    )
+    match = pattern.search(backlog_text)
+    if match is None:
+        return None
+    return "done" if match.group(1) is None else match.group(1)
+
+
 def finalization_diff_errors(root: Path, base: str) -> list[str]:
-    """Разрешить в финализации только backlog, одну task-проекцию и её evidence."""
+    """Разрешить в финализации только BACKLOG и одно evidence."""
     try:
         completed = subprocess.run(
             ["git", "-C", str(root), "diff", "--name-status", f"{base}...HEAD"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             check=False,
         )
     except OSError as error:
@@ -464,35 +593,32 @@ def finalization_diff_errors(root: Path, base: str) -> list[str]:
         status, path = parts
         changes[path.replace("\\", "/")] = status
     changed = set(changes)
-    task_files = {path for path in changed if re.fullmatch(r"\.tasks/TASK-[0-9]{4,}\.json", path)}
     evidence_files = {path for path in changed if re.fullmatch(r"\.evidence/TASK-[0-9]{4,}\.json", path)}
-    expected = {"BACKLOG.md"} | task_files | evidence_files
+    expected = {"BACKLOG.md"} | evidence_files
     errors = []
     if changed != expected:
-        errors.append("финализация содержит файлы вне BACKLOG.md, .tasks и .evidence")
-    if len(task_files) != 1 or len(evidence_files) != 1:
-        errors.append("финализация требует ровно одну машинную задачу и одно evidence")
-    elif next(iter(task_files)).split("/")[-1] != next(iter(evidence_files)).split("/")[-1]:
-        errors.append("машинная задача и evidence относятся к разным TASK-NNNN")
+        errors.append("финализация содержит файлы вне BACKLOG.md и .evidence")
+    if len(evidence_files) != 1:
+        errors.append("финализация требует ровно одно evidence")
     else:
-        task_path = next(iter(task_files))
         evidence_path = next(iter(evidence_files))
-        if changes.get("BACKLOG.md") != "M" or changes.get(task_path) != "M" or changes.get(evidence_path) != "A":
-            errors.append("BACKLOG и задача должны изменяться, а evidence — добавляться впервые")
+        if changes.get("BACKLOG.md") != "M" or changes.get(evidence_path) != "A":
+            errors.append("BACKLOG должен изменяться, а evidence — добавляться впервые")
+        task_id = Path(evidence_path).stem
         try:
-            previous = subprocess.run(
-                ["git", "-C", str(root), "show", f"{base}:{task_path}"],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True,
+            before = subprocess.run(
+                ["git", "-C", str(root), "show", f"{base}:BACKLOG.md"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", check=True,
             )
-            before = json.loads(previous.stdout)
-            after = json.loads((root / task_path).read_text(encoding="utf-8"))
+            after = (root / "BACKLOG.md").read_text(encoding="utf-8")
             evidence = json.loads((root / evidence_path).read_text(encoding="utf-8"))
-            task_id = Path(task_path).stem
-            if before.get("status") == "done" or after.get("status") != "done":
+            before_status = _task_status_in_backlog(before.stdout, task_id)
+            after_status = _task_status_in_backlog(after, task_id)
+            if before_status is None or before_status == "done" or after_status != "done":
                 errors.append("задача должна перейти из незавершённого состояния в done")
-            if before.get("id") != task_id or after.get("id") != task_id or evidence.get("task_id") != task_id:
-                errors.append("содержимое задачи и evidence должно соответствовать имени TASK-NNNN")
-        except (OSError, subprocess.CalledProcessError, json.JSONDecodeError, AttributeError):
+            if evidence.get("task_id") != task_id:
+                errors.append("evidence должен соответствовать имени TASK-NNNN")
+        except (OSError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeDecodeError):
             errors.append("не удалось проверить переход состояния финализируемой задачи")
     return errors
 
@@ -1293,7 +1419,7 @@ def run(
     required = REQUIRED_BY_TYPE.get(kind, ())
     for item in required:
         path = root / item
-        present = path.is_dir() if item == ".tasks" else path.is_file()
+        present = path.is_file()
         checks.append(result("VER-001", present, f"Обязательный файл: {item}", item))
 
     pinned_ref = config.get("methodology_ref")
@@ -1329,7 +1455,7 @@ def run(
             not finalization_errors,
             "Служебный PR изменяет только одну задачу и её evidence"
             if not finalization_errors else "Ошибки финализации: " + "; ".join(finalization_errors),
-            "BACKLOG.md, .tasks/TASK-NNNN.json, .evidence/TASK-NNNN.json",
+            "BACKLOG.md, .evidence/TASK-NNNN.json",
         ))
 
     if kind == "methodology":
@@ -1464,29 +1590,15 @@ def run(
             )
         )
 
-        tasks, task_record_errors = load_records(
-            root / ".tasks" if kind == "hub" else root / "skeletons/hub/.tasks",
-            "task.schema.json",
-        )
-        if backlog_read_error:
-            task_record_errors.append(backlog_read_error)
+        task_record_errors: list[str] = [backlog_read_error] if backlog_read_error else []
         try:
-            expected_tasks = task_records(backlog_text)
+            tasks = task_records(backlog_text)
         except BacklogError as error:
-            expected_tasks = {}
+            tasks = {}
             task_record_errors.append(str(error))
-        task_directory = root / ".tasks" if kind == "hub" else root / "skeletons/hub/.tasks"
-        for task_id, expected in expected_tasks.items():
-            record = tasks.get(task_id)
-            if record is None:
-                task_record_errors.append(f"{task_id}: отсутствует машинная запись")
-            elif record != expected or (task_directory / f"{task_id}.json").read_text(encoding="utf-8") != serialized(expected):
-                task_record_errors.append(f"{task_id}: запись не сгенерирована из BACKLOG.md")
-        for task_id in tasks.keys() - expected_tasks.keys():
-            task_record_errors.append(f"{task_id}: нет соответствующей задачи в BACKLOG.md")
         checks.append(result("VER-012", not task_record_errors,
-            "Машинные задачи сгенерированы из BACKLOG.md" if not task_record_errors
-            else "Ошибки машинных задач: " + "; ".join(task_record_errors), ".tasks/*.json"))
+            "Задачи BACKLOG.md валидны" if not task_record_errors
+            else "Ошибки задач: " + "; ".join(task_record_errors), backlog_location))
 
         evidence, evidence_errors = load_records(
             root / ".evidence" if kind == "hub" else root / "skeletons/hub/.evidence",

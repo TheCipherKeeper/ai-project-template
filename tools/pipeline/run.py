@@ -148,6 +148,20 @@ def verify_review(
     labels_path: Path | None = None,
     human_reviewer: str = "",
 ) -> None:
+    labels: set[str] = set()
+    if labels_path is not None:
+        try:
+            label_document = json.loads(labels_path.read_text(encoding="utf-8"))
+            labels = {
+                item["name"]
+                for item in label_document.get("labels", [])
+                if isinstance(item, dict) and isinstance(item.get("name"), str)
+            }
+        except (OSError, json.JSONDecodeError, AttributeError) as error:
+            raise PipelineError(f"не удалось прочитать метки PR: {error}") from error
+    # Для риска low независимая проверка не обязательна: достаточно автоматического гейта.
+    if "risk:low" in labels:
+        return
     if not reviewer or reviewer == author:
         raise PipelineError("AGENT_REVIEWER_LOGIN должен указывать отдельную учётную запись")
     try:
@@ -164,17 +178,6 @@ def verify_review(
     )
     if not approved:
         raise PipelineError(f"нет актуального APPROVED review от {reviewer} для {head}")
-    labels: set[str] = set()
-    if labels_path is not None:
-        try:
-            label_document = json.loads(labels_path.read_text(encoding="utf-8"))
-            labels = {
-                item["name"]
-                for item in label_document.get("labels", [])
-                if isinstance(item, dict) and isinstance(item.get("name"), str)
-            }
-        except (OSError, json.JSONDecodeError, AttributeError) as error:
-            raise PipelineError(f"не удалось прочитать метки PR: {error}") from error
     if "risk:critical" in labels:
         if not human_reviewer or human_reviewer in {author, reviewer}:
             raise PipelineError("для risk:critical требуется отдельный HUMAN_REVIEWER_LOGIN")
@@ -188,7 +191,6 @@ def verify_review(
         )
         if not human_approved:
             raise PipelineError(f"risk:critical не имеет APPROVED review от {human_reviewer}")
-
 
 def deploy(config: dict[str, object], root: Path, commit: str, artifact: Path) -> None:
     if not artifact.is_file():

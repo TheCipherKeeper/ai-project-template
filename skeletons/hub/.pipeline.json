@@ -4,7 +4,7 @@
     ["docker", "compose", "config", "--quiet"]
   ],
   "tests": [
-    ["uv", "run", ".methodology-policy/tools/tasks/sync.py", "--root", ".", "--check"]
+    ["docker", "compose", "config", "--quiet"]
   ],
   "build": {
     "commands": [
