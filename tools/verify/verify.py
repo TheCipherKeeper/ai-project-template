@@ -1116,7 +1116,7 @@ def composition_root_errors(root: Path, language: str, path: Path) -> list[str]:
         forbidden = re.search(r"(?m)^\s*(?:type|const|var)\s+|^\s*func\s*\(", clean)
         control = re.search(r"\b(?:if|for|switch|select|go|defer|range)\b", clean)
         calls = re.findall(r"\b(?:[A-Za-z_]\w*\.)?([A-Za-z_]\w*)\s*\(", clean)
-        allowed_calls = {"main", "Run", "Start", "Serve", "Background", "TODO"}
+        allowed_calls = {"import", "main", "Run", "Start", "Serve", "Background", "TODO"}
         invalid_calls = [call for call in calls if call not in allowed_calls and not call.startswith("New")]
         if functions != ["main"] or forbidden or control or invalid_calls:
             return [f"{relative}: composition root должен содержать только func main"]

@@ -474,6 +474,13 @@ def make_non_python_service(tmp_path: Path, language: str) -> None:
 
 def test_go_service_accepts_canonical_architecture(tmp_path: Path) -> None:
     make_non_python_service(tmp_path, "go")
+    main = tmp_path / "cmd" / "demo" / "main.go"
+    main.write_text(
+        'package main\nimport (\n'
+        '    "example.test/demo/internal/orders/adapters/inbound"\n'
+        ')\nfunc main() { inbound.Run() }\n',
+        encoding="utf-8",
+    )
 
     report = run(tmp_path)
 
