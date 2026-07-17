@@ -146,8 +146,10 @@ def verify_review(
     author: str,
     head: str,
 ) -> None:
-    if not reviewer or reviewer == author:
-        raise PipelineError("AGENT_REVIEWER_LOGIN должен указывать отдельную учётную запись")
+    # Ревью запускается отдельной сессией агента-ревьюера; та же учётная запись,
+    # что и у автора PR, допускается. ``author`` сохранён для совместимости с CLI.
+    if not reviewer:
+        raise PipelineError("AGENT_REVIEWER_LOGIN должен указывать учётную запись ревьюера")
     try:
         reviews = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:

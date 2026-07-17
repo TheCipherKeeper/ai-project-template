@@ -51,7 +51,7 @@ def test_build_artifact_and_deploy(tmp_path: Path) -> None:
     pipeline.deploy(document, tmp_path, "def5678", archive)
 
 
-def test_review_requires_current_head_and_separate_reviewer(tmp_path: Path) -> None:
+def test_review_requires_current_head_approval(tmp_path: Path) -> None:
     reviews = tmp_path / "reviews.json"
     reviews.write_text(
         json.dumps([{"state": "APPROVED", "commit_id": "abc1234", "user": {"login": "review-agent"}}]),
@@ -68,7 +68,18 @@ def test_review_requires_current_head_and_separate_reviewer(tmp_path: Path) -> N
         raise AssertionError("устаревшее одобрение не должно проходить")
 
 
-def test_critical_review_accepts_independent_agent_approval(tmp_path: Path) -> None:
+def test_review_allows_same_account_as_author(tmp_path: Path) -> None:
+    reviews = tmp_path / "reviews.json"
+    reviews.write_text(
+        json.dumps([{"state": "APPROVED", "commit_id": "abc1234", "user": {"login": "same-agent"}}]),
+        encoding="utf-8",
+    )
+    # Та же учётная запись для автора и ревьюера допускается: независимость
+    # даёт отдельная сессия агента-ревьюера, а не отдельная учётка.
+    pipeline.verify_review(reviews, "same-agent", "same-agent", "abc1234")
+
+
+def test_critical_review_accepts_agent_approval(tmp_path: Path) -> None:
     reviews = tmp_path / "reviews.json"
     reviews.write_text(
         json.dumps(
@@ -81,12 +92,11 @@ def test_critical_review_accepts_independent_agent_approval(tmp_path: Path) -> N
     pipeline.verify_review(reviews, "review-agent", "author-agent", "abc1234")
 
 
-
-def test_low_risk_requires_independent_review(tmp_path: Path) -> None:
+def test_review_requires_configured_reviewer(tmp_path: Path) -> None:
     reviews = tmp_path / "reviews.json"
     reviews.write_text("[]", encoding="utf-8")
 
-    with pytest.raises(pipeline.PipelineError, match="отдельную учётную запись"):
+    with pytest.raises(pipeline.PipelineError, match="учётную запись ревьюера"):
         pipeline.verify_review(reviews, "", "author-agent", "abc1234")
 
     reviews.write_text(

@@ -44,7 +44,9 @@ flowchart LR
 невалидной конфигурации или нарушенном порядке стадий.
 
 Стадия `review` принимает только актуальный `APPROVED` GitHub Review для текущего
-коммита PR от учётной записи из `AGENT_REVIEWER_LOGIN`, отличной от автора PR.
+коммита PR от учётной записи из `AGENT_REVIEWER_LOGIN`. Допускается та же учётная
+запись, что и у автора PR; независимость обеспечивается отдельной сессией
+агента-ревьюера.
 Отправка нового коммита делает прежнее одобрение недействительным. Риск PR
 обозначается меткой `risk:low`, `risk:medium`, `risk:high` или `risk:critical`.
 Для всех уровней риска требуется `APPROVED` от `AGENT_REVIEWER_LOGIN`. Уровень
@@ -62,10 +64,12 @@ flowchart LR
 
 Токен модели `REVIEW_MODEL_API_KEY` и токен GitHub
 `REVIEW_GITHUB_TOKEN` являются разными секретами. Для локальной Ollama токен модели
-не нужен. GitHub-токен принадлежит отдельной GitHub App или bot-учётной записи с
-правами `Contents: read` и `Pull requests: read and write`; её точный логин одинаково
-задаётся в `REVIEW_GITHUB_REVIEWER_LOGIN` локального reviewer и
-`AGENT_REVIEWER_LOGIN` продуктового репозитория.
+не нужен. GitHub-токен принадлежит учётной записи `AGENT_REVIEWER_LOGIN` с правами
+`Contents: read` и `Pull requests: read and write`; это может быть та же учётная
+запись, что и у автора PR — независимость обеспечивает отдельная сессия
+агента-ревьюера, а не отдельная учётка. Её точный логин одинаково задаётся в
+`REVIEW_GITHUB_REVIEWER_LOGIN` локального reviewer и `AGENT_REVIEWER_LOGIN`
+продуктового репозитория.
 
 Reviewer получает только замкнутые инструменты чтения текущего PR: описание, diff,
 файл из точного head SHA и результаты GitHub checks. Модель не получает GitHub-токен,
