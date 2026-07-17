@@ -806,21 +806,126 @@ def test_done_task_requires_evidence(tmp_path: Path) -> None:
 def test_evidence_schema_requires_digest_sources_and_reviewer() -> None:
     schema = json.loads((Path(__file__).parents[2] / "schemas/evidence.schema.json").read_text(encoding="utf-8"))
     invalid = {
-        "schema_version": 1, "task_id": "TASK-0001", "run_id": "1",
+        "run_id": "1",
         "repository": "https://github.com/acme/app",
         "pr": "https://github.com/acme/app/pull/1", "commit": "abcdef1",
-        "methodology_ref": "v1.0.0", "checks": [{"name": "gate", "status": "passed"}],
+        "checks": [{"name": "gate", "status": "passed"}],
         "reviews": [{"name": "review", "status": "passed", "source": "run:1"}],
         "attempts": 1, "artifact": "image:latest",
-        "deployment": {"environment": "test", "probes": [{"name": "smoke", "status": "passed", "source": "run:1"}]},
-        "status": "passed", "created_at": "2026-01-01T00:00:00Z", "retained_until": "2026-02-01T00:00:00Z"
+        "deployment": {"environment": "test", "probes": [{"name": "smoke", "status": "passed", "source": "run:1"}]}
     }
 
-    errors = validate_json(invalid, schema)
+    errors = validate_json(invalid, schema["$defs"]["delivery"], root_schema=schema)
 
     assert any("checks.0.source" in error for error in errors)
     assert any("reviews.0.reviewer" in error for error in errors)
     assert any("artifact" in error for error in errors)
+
+
+def test_evidence_v2_matches_all_task_repositories(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    repositories = ["https://github.com/acme/api", "https://github.com/acme/worker"]
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [x] — Задача\n\nЦелевые репозитории:\n"
+        + "".join(f"- {repository}\n" for repository in repositories)
+        + "\nРиск: low\nАвтономность: auto-test-deploy\nТриггеры:\n- нет\n\n"
+        "Цель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n\n"
+        "Откат: вернуть предыдущие хеши артефактов.\n",
+        encoding="utf-8",
+    )
+    passed = {"name": "gate", "status": "passed", "source": "https://ci.example/run/1"}
+    review = {**passed, "name": "review", "reviewer": "agent"}
+
+    def delivery(repository: str, commit: str) -> dict[str, object]:
+        return {
+            "repository": repository,
+            "run_id": commit,
+            "pr": repository + "/pull/1",
+            "commit": commit,
+            "checks": [passed],
+            "reviews": [review],
+            "attempts": 1,
+            "artifact": "sha256:" + "a" * 64,
+            "deployment": {"environment": "test", "probes": [passed]},
+        }
+
+    evidence = tmp_path / ".evidence"
+    evidence.mkdir()
+    record = {
+        "schema_version": 2,
+        "task_id": "TASK-0001",
+        "methodology_ref": "v1.0.0",
+        "deliveries": [delivery(repositories[0], "abcdef1"), delivery(repositories[1], "abcdef2")],
+        "status": "passed",
+        "created_at": "2026-01-01T00:00:00Z",
+        "retained_until": "2026-02-01T00:00:00Z",
+    }
+    (evidence / "TASK-0001.json").write_text(json.dumps(record), encoding="utf-8")
+
+    report = run(tmp_path)
+    assert next(check for check in report["checks"] if check["id"] == "VER-013")["status"] == "passed"
+
+    record["deliveries"] = [record["deliveries"][0]]
+    (evidence / "TASK-0001.json").write_text(json.dumps(record), encoding="utf-8")
+    report = run(tmp_path)
+    message = next(check["message"] for check in report["checks"] if check["id"] == "VER-013")
+    assert "не совпадают с целевыми репозиториями" in message
+
+
+def test_evidence_v2_rejects_duplicate_repository_delivery(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    repository = "https://github.com/acme/api"
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [x] — Задача\n\nЦелевые репозитории:\n"
+        f"- {repository}\n\nРиск: low\nАвтономность: auto-test-deploy\nТриггеры:\n- нет\n\n"
+        "Цель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n\nОткат: возврат.\n",
+        encoding="utf-8",
+    )
+    passed = {"name": "gate", "status": "passed", "source": "https://ci.example/run/1"}
+    delivery = {
+        "repository": repository, "run_id": "1", "pr": repository + "/pull/1", "commit": "abcdef1",
+        "checks": [passed], "reviews": [{**passed, "reviewer": "agent"}], "attempts": 1,
+        "artifact": "sha256:" + "a" * 64,
+        "deployment": {"environment": "test", "probes": [passed]},
+    }
+    evidence = tmp_path / ".evidence"
+    evidence.mkdir()
+    (evidence / "TASK-0001.json").write_text(json.dumps({
+        "schema_version": 2, "task_id": "TASK-0001", "methodology_ref": "v1.0.0",
+        "deliveries": [delivery, delivery], "status": "passed",
+        "created_at": "2026-01-01T00:00:00Z", "retained_until": "2026-02-01T00:00:00Z",
+    }), encoding="utf-8")
+
+    report = run(tmp_path)
+    message = next(check["message"] for check in report["checks"] if check["id"] == "VER-013")
+    assert "повторяющиеся репозитории" in message
+
+
+def test_new_task_format_requires_evidence_v2(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    repository = "https://github.com/acme/api"
+    (tmp_path / "BACKLOG.md").write_text(
+        "### TASK-0001. [x] — Задача\n\nЦелевые репозитории:\n"
+        f"- {repository}\n\nРиск: low\nАвтономность: auto-test-deploy\nТриггеры:\n- нет\n\n"
+        "Цель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n\nОткат: возврат.\n",
+        encoding="utf-8",
+    )
+    passed = {"name": "gate", "status": "passed", "source": "https://ci.example/run/1"}
+    evidence = tmp_path / ".evidence"
+    evidence.mkdir()
+    (evidence / "TASK-0001.json").write_text(json.dumps({
+        "schema_version": 1, "task_id": "TASK-0001", "repository": repository,
+        "run_id": "1", "pr": repository + "/pull/1", "commit": "abcdef1",
+        "methodology_ref": "v1.0.0", "checks": [passed],
+        "reviews": [{**passed, "reviewer": "agent"}], "attempts": 1,
+        "artifact": "sha256:" + "a" * 64,
+        "deployment": {"environment": "test", "probes": [passed]}, "status": "passed",
+        "created_at": "2026-01-01T00:00:00Z", "retained_until": "2026-02-01T00:00:00Z",
+    }), encoding="utf-8")
+
+    report = run(tmp_path)
+    message = next(check["message"] for check in report["checks"] if check["id"] == "VER-013")
+    assert "требует evidence schema_version 2" in message
 
 
 def test_date_time_requires_full_rfc3339_timestamp() -> None:

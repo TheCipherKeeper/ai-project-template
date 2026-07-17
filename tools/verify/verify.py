@@ -127,6 +127,7 @@ INLINE_TEXT_DIAGRAM_PATTERN = re.compile(
 RFC3339_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
 )
+REPOSITORY_URL_PATTERN = re.compile(r"^https://[^/]+/.+/.+$")
 
 
 TASK_HEADING = re.compile(
@@ -134,12 +135,13 @@ TASK_HEADING = re.compile(
 )
 TASK_SCALAR_FIELDS = {
     "Цель": "goal",
-    "Целевой репозиторий": "target",
+    "Целевой репозиторий": "targets",
     "Риск": "risk",
     "Автономность": "autonomy",
     "Откат": "rollback",
 }
 TASK_LIST_FIELDS = {
+    "Целевые репозитории": "targets",
     "Готово, когда": "acceptance_criteria",
     "Не входит": "out_of_scope",
     "Триггеры": "triggers",
@@ -192,6 +194,13 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
         for label in (*TASK_SCALAR_FIELDS, *TASK_LIST_FIELDS, "Диагностика"):
             if len(re.findall(rf"^{re.escape(label)}:", block, re.MULTILINE)) > 1:
                 raise BacklogError(f"{task_id}: поле «{label}» указано несколько раз")
+        if _backlog_field(block, "Целевой репозиторий") and _backlog_field(block, "Целевые репозитории"):
+            raise BacklogError(
+                f"{task_id}: укажите только одно из полей «Целевой репозиторий» или «Целевые репозитории»"
+            )
+        record["target_format"] = (
+            "list" if _backlog_field(block, "Целевые репозитории") is not None else "legacy"
+        )
         status = str(record["status"])
         diagnostic = _backlog_field(block, "Диагностика")
         first_content = next((line.strip() for line in block.splitlines()[1:] if line.strip()), "")
@@ -207,12 +216,17 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
         for label, key in TASK_SCALAR_FIELDS.items():
             value = _backlog_field(block, label)
             if value:
-                record[key] = " ".join(value.splitlines())
+                normalized = " ".join(value.splitlines())
+                record[key] = [normalized] if key == "targets" else normalized
+            elif key == "targets" and _backlog_field(block, "Целевые репозитории") is not None:
+                continue
             elif key not in TASK_QUALIFICATION_FIELDS:
                 raise BacklogError(f"{task_id}: отсутствует поле «{label}»")
         for label, key in TASK_LIST_FIELDS.items():
             value = _backlog_field(block, label)
             if value is None:
+                if key == "targets" and key in record:
+                    continue
                 if key in TASK_QUALIFICATION_FIELDS:
                     continue
                 raise BacklogError(f"{task_id}: отсутствует поле «{label}»")
@@ -231,6 +245,15 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
             if len(items) != len(set(items)):
                 raise BacklogError(f"{task_id}: поле «{label}» содержит повторяющиеся элементы")
             record[key] = items
+        if _backlog_field(block, "Целевые репозитории") is not None:
+            invalid_targets = [
+                target for target in record.get("targets", [])
+                if not isinstance(target, str) or not REPOSITORY_URL_PATTERN.fullmatch(target)
+            ]
+            if invalid_targets:
+                raise BacklogError(
+                    f"{task_id}: целевой репозиторий должен быть каноническим HTTPS-адресом Git"
+                )
         present_qualification = TASK_QUALIFICATION_FIELDS & record.keys()
         if present_qualification and present_qualification != TASK_QUALIFICATION_FIELDS:
             missing = sorted(TASK_QUALIFICATION_FIELDS - present_qualification)
@@ -1723,10 +1746,48 @@ def run(
                 evidence_errors.append(f"{task_id}: evidence не связан с машинной задачей")
             if record.get("methodology_ref") != pinned_ref and kind != "methodology":
                 evidence_errors.append(f"{task_id}: methodology_ref не совпадает с .methodology.yml")
-            repository = record.get("repository")
-            pr = record.get("pr")
-            if isinstance(repository, str) and isinstance(pr, str) and not pr.startswith(repository.rstrip("/") + "/pull/"):
-                evidence_errors.append(f"{task_id}: PR не принадлежит указанному продуктовому репозиторию")
+            deliveries = record.get("deliveries")
+            if not isinstance(deliveries, list):
+                deliveries = [{
+                    key: record.get(key)
+                    for key in (
+                        "repository", "run_id", "pr", "commit", "checks", "reviews",
+                        "attempts", "artifact", "deployment",
+                    )
+                }]
+            repositories = [
+                delivery.get("repository")
+                for delivery in deliveries
+                if isinstance(delivery, dict) and isinstance(delivery.get("repository"), str)
+            ]
+            if len(repositories) != len(set(repositories)):
+                evidence_errors.append(f"{task_id}: deliveries содержит повторяющиеся репозитории")
+            task = tasks.get(task_id)
+            if (
+                task is not None
+                and task.get("target_format") == "list"
+                and record.get("schema_version") != 2
+            ):
+                evidence_errors.append(f"{task_id}: новая форма задачи требует evidence schema_version 2")
+            if record.get("schema_version") == 2 and task is not None:
+                targets = task.get("targets", [])
+                if set(repositories) != set(targets) or len(repositories) != len(targets):
+                    evidence_errors.append(
+                        f"{task_id}: репозитории deliveries не совпадают с целевыми репозиториями задачи"
+                    )
+            for delivery in deliveries:
+                if not isinstance(delivery, dict):
+                    continue
+                repository = delivery.get("repository")
+                pr = delivery.get("pr")
+                if (
+                    isinstance(repository, str)
+                    and isinstance(pr, str)
+                    and not pr.startswith(repository.rstrip("/") + "/pull/")
+                ):
+                    evidence_errors.append(
+                        f"{task_id}: PR не принадлежит указанному продуктовому репозиторию {repository}"
+                    )
             try:
                 created = datetime.fromisoformat(str(record.get("created_at", "")).replace("Z", "+00:00"))
                 retained = datetime.fromisoformat(str(record.get("retained_until", "")).replace("Z", "+00:00"))
@@ -1734,18 +1795,44 @@ def run(
                     evidence_errors.append(f"{task_id}: retained_until должен быть позже created_at")
             except (ValueError, TypeError):
                 pass  # Формат уже диагностирован валидатором схемы.
-            results = record.get("checks", []) + record.get("reviews", [])
-            probes = record.get("deployment", {}).get("probes", []) if isinstance(record.get("deployment"), dict) else []
-            if record.get("status") == "passed" and any(
-                item.get("status") == "failed" for item in results + probes if isinstance(item, dict)
-            ):
-                evidence_errors.append(f"{task_id}: passed evidence содержит failed результат")
             if record.get("status") == "passed":
-                checks_passed = any(item.get("status") == "passed" for item in record.get("checks", []) if isinstance(item, dict))
-                reviews_passed = any(item.get("status") == "passed" for item in record.get("reviews", []) if isinstance(item, dict))
-                probes_passed = any(item.get("status") == "passed" for item in probes if isinstance(item, dict))
-                if not checks_passed or not reviews_passed or not probes_passed:
-                    evidence_errors.append(f"{task_id}: passed evidence требует успешные check, review и deployment probe")
+                for delivery in deliveries:
+                    if not isinstance(delivery, dict):
+                        continue
+                    delivery_checks = delivery.get("checks", [])
+                    delivery_reviews = delivery.get("reviews", [])
+                    if not isinstance(delivery_checks, list):
+                        delivery_checks = []
+                    if not isinstance(delivery_reviews, list):
+                        delivery_reviews = []
+                    results = delivery_checks + delivery_reviews
+                    deployment = delivery.get("deployment")
+                    probes = deployment.get("probes", []) if isinstance(deployment, dict) else []
+                    if not isinstance(probes, list):
+                        probes = []
+                    if any(
+                        item.get("status") == "failed"
+                        for item in results + probes
+                        if isinstance(item, dict)
+                    ):
+                        evidence_errors.append(f"{task_id}: passed evidence содержит failed результат")
+                    checks_passed = any(
+                        item.get("status") == "passed"
+                        for item in delivery_checks
+                        if isinstance(item, dict)
+                    )
+                    reviews_passed = any(
+                        item.get("status") == "passed"
+                        for item in delivery_reviews
+                        if isinstance(item, dict)
+                    )
+                    probes_passed = any(
+                        item.get("status") == "passed" for item in probes if isinstance(item, dict)
+                    )
+                    if not checks_passed or not reviews_passed or not probes_passed:
+                        evidence_errors.append(
+                            f"{task_id}: каждая поставка passed evidence требует успешные check, review и deployment probe"
+                        )
         for task_id, task in tasks.items():
             if task.get("status") == "done":
                 if task_id not in evidence:
