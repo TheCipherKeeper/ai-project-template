@@ -24,7 +24,7 @@
 - `tools/verify/` — локальная проверка и проверка в CI;
 - `tools/pipeline/` — исполнитель стадий продуктового конвейера;
 - `tools/review/` — независимый Strands reviewer с Ollama или OpenAI-совместимым API;
-- `tools/tasks/` — генерация машинных задач из канонического `BACKLOG.md`;
+- `skeletons/hub/tools/run_task.py` — запуск первой готовой задачи напрямую из канонического `BACKLOG.md`;
 - `schemas/` — машинные форматы отчётов.
 
 ## Проверка методологии

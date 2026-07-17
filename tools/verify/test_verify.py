@@ -13,6 +13,7 @@ from verify import (
     main,
     non_mermaid_diagrams,
     pipeline_errors,
+    qualification_diff_errors,
     run,
     skeleton_errors,
     validate_json,
@@ -272,8 +273,10 @@ def test_critical_risk_allows_automatic_test_deployment(tmp_path: Path) -> None:
     make_hub(tmp_path)
     source = Path(__file__).resolve().parents[2] / "skeletons" / "hub" / "BACKLOG.md"
     backlog = source.read_text(encoding="utf-8")
-    backlog = backlog.replace("Риск: low", "Риск: critical").replace(
-        "Автономность: auto-test-deploy", "Автономность: human-before-production"
+    backlog = backlog.replace(
+        "Целевой репозиторий: hub",
+        "Целевой репозиторий: hub\nРиск: critical\nАвтономность: human-before-production\n"
+        "Триггеры:\n- нет\n\nОткат: вернуть предыдущий хеш артефакта.",
     )
     (tmp_path / "BACKLOG.md").write_text(backlog, encoding="utf-8")
 
@@ -283,6 +286,19 @@ def test_critical_risk_allows_automatic_test_deployment(tmp_path: Path) -> None:
         check["id"] == "VER-012" and check["status"] == "passed"
         for check in report["checks"]
     )
+
+
+def test_ready_task_accepts_no_qualification_and_rejects_partial_block(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    minimal = (
+        "### TASK-0001. [ ] ready — Задача\n\nЦелевой репозиторий: hub\n\n"
+        "Цель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n"
+    )
+    (tmp_path / "BACKLOG.md").write_text(minimal, encoding="utf-8")
+    assert any(check["id"] == "VER-012" and check["status"] == "passed" for check in run(tmp_path)["checks"])
+
+    (tmp_path / "BACKLOG.md").write_text(minimal + "\nРиск: low\n", encoding="utf-8")
+    assert any(check["id"] == "VER-012" and check["status"] == "failed" for check in run(tmp_path)["checks"])
 
 
 def test_methodology_rejects_powershell_scripts(tmp_path: Path) -> None:
@@ -777,8 +793,8 @@ def test_done_task_requires_evidence(tmp_path: Path) -> None:
     make_hub(tmp_path)
     (tmp_path / "BACKLOG.md").write_text(
         "### TASK-0001. [x] — Задача\n\nЦелевой репозиторий: hub\nРиск: low\n"
-        "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
-        "Готово, когда:\n- x\n\nНе входит:\n- нет\n",
+            "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
+            "Готово, когда:\n- x\n\nНе входит:\n- нет\n\nОткат: вернуть предыдущий хеш артефакта.\n",
         encoding="utf-8",
     )
 
@@ -819,8 +835,8 @@ def test_done_task_rejects_failed_evidence(tmp_path: Path) -> None:
     make_hub(tmp_path)
     backlog = (
         "### TASK-0001. [x] — Задача\n\nЦелевой репозиторий: hub\nРиск: low\n"
-        "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
-        "Готово, когда:\n- x\n\nНе входит:\n- нет\n"
+            "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
+            "Готово, когда:\n- x\n\nНе входит:\n- нет\n\nОткат: вернуть предыдущий хеш артефакта.\n"
     )
     (tmp_path / "BACKLOG.md").write_text(backlog, encoding="utf-8")
     evidence = tmp_path / ".evidence"
@@ -852,8 +868,8 @@ def test_done_task_rejects_evidence_without_passed_results_or_matching_pr(tmp_pa
     make_hub(tmp_path)
     backlog = (
         "### TASK-0001. [x] — Задача\n\nЦелевой репозиторий: hub\nРиск: low\n"
-        "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
-        "Готово, когда:\n- x\n\nНе входит:\n- нет\n"
+            "Автономность: auto-test-deploy\nТриггеры:\n- нет\n\nЦель:\nx\n\n"
+            "Готово, когда:\n- x\n\nНе входит:\n- нет\n\nОткат: вернуть предыдущий хеш артефакта.\n"
     )
     (tmp_path / "BACKLOG.md").write_text(backlog, encoding="utf-8")
     evidence = tmp_path / ".evidence"
@@ -960,6 +976,32 @@ def test_finalization_rejects_existing_evidence_and_done_task(tmp_path: Path) ->
     errors = finalization_diff_errors(tmp_path, base)
     assert any("добавляться впервые" in error for error in errors)
     assert any("незавершённого" in error for error in errors)
+
+
+def test_qualification_diff_allows_only_complete_classification(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Test"], check=True)
+    minimal = (
+        "### TASK-0001. [ ] ready — Задача\n\nЦелевой репозиторий: hub\n\n"
+        "Цель:\nx\n\nГотово, когда:\n- x\n\nНе входит:\n- нет\n"
+    )
+    (tmp_path / "BACKLOG.md").write_text(minimal, encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "initial"], check=True, capture_output=True)
+    base = subprocess.run(
+        ["git", "-C", str(tmp_path), "rev-parse", "HEAD"], check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    qualified = minimal.replace(
+        "Целевой репозиторий: hub",
+        "Целевой репозиторий: hub\nРиск: low\nАвтономность: auto-test-deploy\n"
+        "Триггеры:\n- нет\n\nОткат: вернуть предыдущий хеш артефакта.",
+    )
+    (tmp_path / "BACKLOG.md").write_text(qualified, encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-m", "qualify"], check=True, capture_output=True)
+
+    assert qualification_diff_errors(tmp_path, base) == []
 
 
 def test_workflow_passes_pr_and_merge_commits_and_fetches_history() -> None:

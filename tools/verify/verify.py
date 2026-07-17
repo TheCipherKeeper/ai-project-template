@@ -152,6 +152,7 @@ TASK_ALLOWED_VALUES = {
 TASK_DIAGNOSTIC_STATUSES = {"needs-input", "blocked-external", "automation-failed", "retry-exhausted"}
 TASK_HIGH_RISK_TRIGGERS = {"contract", "data", "security"}
 TASK_AUTONOMY_RANK = {"auto-test-deploy": 0, "human-before-production": 1, "human-before-merge": 2}
+TASK_QUALIFICATION_FIELDS = {"risk", "autonomy", "triggers", "rollback"}
 
 
 class BacklogError(ValueError):
@@ -207,11 +208,13 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
             value = _backlog_field(block, label)
             if value:
                 record[key] = " ".join(value.splitlines())
-            elif key != "rollback":
+            elif key not in TASK_QUALIFICATION_FIELDS:
                 raise BacklogError(f"{task_id}: отсутствует поле «{label}»")
         for label, key in TASK_LIST_FIELDS.items():
             value = _backlog_field(block, label)
             if value is None:
+                if key in TASK_QUALIFICATION_FIELDS:
+                    continue
                 raise BacklogError(f"{task_id}: отсутствует поле «{label}»")
             if key == "triggers" and value == "- нет":
                 record[key] = []
@@ -228,21 +231,32 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
             if len(items) != len(set(items)):
                 raise BacklogError(f"{task_id}: поле «{label}» содержит повторяющиеся элементы")
             record[key] = items
+        present_qualification = TASK_QUALIFICATION_FIELDS & record.keys()
+        if present_qualification and present_qualification != TASK_QUALIFICATION_FIELDS:
+            missing = sorted(TASK_QUALIFICATION_FIELDS - present_qualification)
+            raise BacklogError(
+                f"{task_id}: квалификация должна добавляться целиком; отсутствуют {', '.join(missing)}"
+            )
+        if status == "done" and not present_qualification:
+            raise BacklogError(f"{task_id}: завершённая задача не может быть без квалификации")
         for key, allowed in TASK_ALLOWED_VALUES.items():
+            if key not in record:
+                continue
             values = record[key] if isinstance(record[key], list) else [record[key]]
             invalid = [value for value in values if value not in allowed]
             if invalid:
                 raise BacklogError(f"{task_id}: недопустимое значение {key}: {invalid[0]}")
-        triggers = set(record["triggers"])
-        risk = str(record["risk"])
-        autonomy = str(record["autonomy"])
-        if triggers & TASK_HIGH_RISK_TRIGGERS and risk not in {"high", "critical"}:
-            raise BacklogError(
-                f"{task_id}: триггеры contract, data и security требуют риск high или critical"
-            )
-        minimum_autonomy = 1 if risk in {"high", "critical"} else 0
-        if TASK_AUTONOMY_RANK[autonomy] < minimum_autonomy:
-            raise BacklogError(f"{task_id}: автономность слишком широка для риска {risk}")
+        if present_qualification:
+            triggers = set(record["triggers"])
+            risk = str(record["risk"])
+            autonomy = str(record["autonomy"])
+            if triggers & TASK_HIGH_RISK_TRIGGERS and risk not in {"high", "critical"}:
+                raise BacklogError(
+                    f"{task_id}: триггеры contract, data и security требуют риск high или critical"
+                )
+            minimum_autonomy = 1 if risk in {"high", "critical"} else 0
+            if TASK_AUTONOMY_RANK[autonomy] < minimum_autonomy:
+                raise BacklogError(f"{task_id}: автономность слишком широка для риска {risk}")
         records[task_id] = record
     if not records:
         raise BacklogError("нет ни одной задачи TASK-NNNN")
@@ -266,6 +280,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--finalization-base",
         help="base SHA служебного PR task-finalization; включает проверку состава diff",
+    )
+    parser.add_argument(
+        "--qualification-base",
+        help="base SHA служебного PR task-qualification; включает проверку состава diff",
     )
     return parser.parse_args()
 
@@ -621,6 +639,88 @@ def finalization_diff_errors(root: Path, base: str) -> list[str]:
         except (OSError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeDecodeError):
             errors.append("не удалось проверить переход состояния финализируемой задачи")
     return errors
+
+
+def qualification_diff_errors(root: Path, base: str) -> list[str]:
+    """Разрешить в квалификации только полное добавление классификации одной задачи."""
+    try:
+        changed = subprocess.run(
+            ["git", "-C", str(root), "diff", "--name-only", f"{base}...HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        ).stdout.splitlines()
+        if changed != ["BACKLOG.md"]:
+            return ["квалификация может изменять только BACKLOG.md"]
+        before = subprocess.run(
+            ["git", "-C", str(root), "show", f"{base}:BACKLOG.md"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        ).stdout
+        after = (root / "BACKLOG.md").read_text(encoding="utf-8")
+        before_tasks = task_records(before)
+        after_tasks = task_records(after)
+        patch = subprocess.run(
+            ["git", "-C", str(root), "diff", "--unified=0", f"{base}...HEAD", "--", "BACKLOG.md"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        ).stdout.splitlines()
+    except (OSError, subprocess.CalledProcessError, UnicodeDecodeError, BacklogError):
+        return ["не удалось проверить изменение квалификации"]
+    additions = []
+    for line in patch:
+        if line.startswith("---") or line.startswith("+++") or line.startswith("@@"):
+            continue
+        if line.startswith("-"):
+            return ["квалификация не может удалять или заменять существующий текст"]
+        if line.startswith("+"):
+            additions.append(line[1:])
+    allowed_prefixes = ("Риск:", "Автономность:", "Триггеры:", "Откат:", "- ")
+    if any(line and not line.startswith(allowed_prefixes) for line in additions):
+        return ["квалификация изменила поля вне риска, автономности, триггеров и отката"]
+    if before_tasks.keys() != after_tasks.keys():
+        return ["квалификация не может добавлять или удалять задачи"]
+    qualified = []
+    for task_id, before_task in before_tasks.items():
+        after_task = after_tasks[task_id]
+        before_fields = TASK_QUALIFICATION_FIELDS & before_task.keys()
+        after_fields = TASK_QUALIFICATION_FIELDS & after_task.keys()
+        if before_fields == after_fields:
+            if before_task != after_task:
+                return [f"{task_id}: квалификация изменила существующие данные"]
+            continue
+        if before_task.get("status") != "ready" or before_fields or after_fields != TASK_QUALIFICATION_FIELDS:
+            return [f"{task_id}: допустимо только полное добавление квалификации к ready-задаче"]
+        qualified.append(task_id)
+    if len(qualified) != 1:
+        return ["квалификация должна изменять ровно одну ready-задачу"]
+    first_ready = next(
+        (task_id for task_id, task in before_tasks.items() if task.get("status") == "ready"),
+        None,
+    )
+    if qualified[0] != first_ready:
+        return ["квалифицировать можно только первую ready-задачу"]
+    qualified_task = after_tasks[qualified[0]]
+    expected_additions = [
+        f"Риск: {qualified_task['risk']}",
+        f"Автономность: {qualified_task['autonomy']}",
+        "Триггеры:",
+        *(f"- {trigger}" for trigger in qualified_task["triggers"]),
+        f"Откат: {qualified_task['rollback']}",
+    ]
+    if not qualified_task["triggers"]:
+        expected_additions.insert(3, "- нет")
+    if sorted(line for line in additions if line) != sorted(expected_additions):
+        return ["квалификация содержит изменения помимо полного блока классификации"]
+    return []
 
 
 def forbidden_artifacts(root: Path, kind: str) -> list[str]:
@@ -1402,6 +1502,7 @@ def run(
     ci_methodology_ref: str | None = None,
     expected_commit: str | None = None,
     finalization_base: str | None = None,
+    qualification_base: str | None = None,
 ) -> dict[str, object]:
     checks: list[dict[str, str]] = []
     config, config_errors = methodology_config(root)
@@ -1458,6 +1559,15 @@ def run(
             "Служебный PR изменяет только одну задачу и её evidence"
             if not finalization_errors else "Ошибки финализации: " + "; ".join(finalization_errors),
             "BACKLOG.md, .evidence/TASK-NNNN.json",
+        ))
+    if qualification_base is not None:
+        qualification_errors = qualification_diff_errors(root, qualification_base)
+        checks.append(result(
+            "VER-020",
+            not qualification_errors,
+            "Служебный PR полностью квалифицирует ровно одну ready-задачу"
+            if not qualification_errors else "Ошибки квалификации: " + "; ".join(qualification_errors),
+            "BACKLOG.md",
         ))
 
     if kind == "methodology":
@@ -1664,7 +1774,13 @@ def run(
 def main() -> int:
     args = parse_args()
     root = args.root.resolve()
-    report = run(root, args.methodology_ref, args.commit, args.finalization_base)
+    report = run(
+        root,
+        args.methodology_ref,
+        args.commit,
+        args.finalization_base,
+        args.qualification_base,
+    )
     output = json.dumps(report, ensure_ascii=False, indent=2)
     if args.report:
         args.report.write_text(output + "\n", encoding="utf-8")

@@ -150,6 +150,13 @@ def first_ready_task_block(hub: Path) -> str:
     return tail[:end].strip()
 
 
+def task_is_qualified(task_block: str) -> bool:
+    return all(
+        re.search(rf"^{re.escape(label)}:", task_block, re.MULTILINE)
+        for label in ("Риск", "Автономность", "Триггеры", "Откат")
+    )
+
+
 def create_agent(settings: Settings, hub: Path):
     try:
         from strands import Agent, tool
@@ -247,7 +254,15 @@ def main() -> int:
         settings = Settings.load(hub)
         task_block = first_ready_task_block(hub)
         agent = create_agent(settings, hub)
-        result = agent("Выполни эту первую готовую задачу хаба:\n" + task_block)
+        if task_is_qualified(task_block):
+            instruction = "Выполни эту первую готовую и уже квалифицированную задачу хаба:\n"
+        else:
+            instruction = (
+                "Сначала квалифицируй эту первую минимальную задачу: отдельным служебным PR "
+                "task-qualification добавь в BACKLOG.md риск, автономность, триггеры и откат, "
+                "слей PR и синхронизируй main хаба. Только после этого выполняй продуктовую задачу:\n"
+            )
+        result = agent(instruction + task_block)
         print(result)
     except (OSError, ValueError, json.JSONDecodeError, subprocess.SubprocessError, TaskAgentError) as error:
         print(f"Ошибка исполнителя задачи: {error}", file=sys.stderr)
