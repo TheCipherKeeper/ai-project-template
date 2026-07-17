@@ -625,6 +625,8 @@ def finalization_diff_errors(root: Path, base: str) -> list[str]:
 
 def forbidden_artifacts(root: Path, kind: str) -> list[str]:
     violations = []
+    if kind in {"methodology", "service", "interface", "standalone"} and (root / "adr").exists():
+        violations.append("adr/")
     for path in root.rglob("*"):
         if not path.is_file() or ".git" in path.relative_to(root).parts:
             continue
