@@ -3,6 +3,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 MODULE_PATH = Path(__file__).with_name("run.py")
 SPEC = importlib.util.spec_from_file_location("pipeline_run", MODULE_PATH)
@@ -84,10 +86,25 @@ def test_critical_review_requires_human_approval(tmp_path: Path) -> None:
 
 
 
-def test_low_risk_skips_independent_review(tmp_path: Path) -> None:
+def test_low_risk_requires_independent_review(tmp_path: Path) -> None:
     reviews = tmp_path / "reviews.json"
     reviews.write_text("[]", encoding="utf-8")
     labels = tmp_path / "labels.json"
     labels.write_text(json.dumps({"labels": [{"name": "risk:low"}]}), encoding="utf-8")
 
-    pipeline.verify_review(reviews, "", "author-agent", "abc1234", labels)
+    with pytest.raises(pipeline.PipelineError, match="отдельную учётную запись"):
+        pipeline.verify_review(reviews, "", "author-agent", "abc1234", labels)
+
+    reviews.write_text(
+        json.dumps(
+            [
+                {
+                    "state": "APPROVED",
+                    "commit_id": "abc1234",
+                    "user": {"login": "review-agent"},
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    pipeline.verify_review(reviews, "review-agent", "author-agent", "abc1234", labels)

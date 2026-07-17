@@ -159,9 +159,6 @@ def verify_review(
             }
         except (OSError, json.JSONDecodeError, AttributeError) as error:
             raise PipelineError(f"не удалось прочитать метки PR: {error}") from error
-    # Для риска low независимая проверка не обязательна: достаточно автоматического гейта.
-    if "risk:low" in labels:
-        return
     if not reviewer or reviewer == author:
         raise PipelineError("AGENT_REVIEWER_LOGIN должен указывать отдельную учётную запись")
     try:

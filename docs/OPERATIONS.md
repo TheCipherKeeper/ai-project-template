@@ -47,9 +47,8 @@ flowchart LR
 коммита PR от учётной записи из `AGENT_REVIEWER_LOGIN`, отличной от автора PR.
 Отправка нового коммита делает прежнее одобрение недействительным. Риск PR
 обозначается меткой `risk:low`, `risk:medium`, `risk:high` или `risk:critical`.
-Для `risk:low` независимая проверка не требуется и стадия проходит без одобрения;
-для `risk:medium` и `risk:high` достаточно `APPROVED` от `AGENT_REVIEWER_LOGIN`;
-для `risk:critical` дополнительно требуется актуальное одобрение отдельной учётной
+Для всех уровней риска требуется `APPROVED` от `AGENT_REVIEWER_LOGIN`; для
+`risk:critical` дополнительно требуется актуальное одобрение отдельной учётной
 записи из `HUMAN_REVIEWER_LOGIN`.
 
 ### Запуск независимого reviewer
