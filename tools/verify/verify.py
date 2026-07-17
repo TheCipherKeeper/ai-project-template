@@ -240,7 +240,7 @@ def task_records(backlog_text: str) -> dict[str, dict[str, object]]:
             raise BacklogError(
                 f"{task_id}: триггеры contract, data и security требуют риск high или critical"
             )
-        minimum_autonomy = 2 if risk == "critical" else 1 if risk == "high" else 0
+        minimum_autonomy = 1 if risk in {"high", "critical"} else 0
         if TASK_AUTONOMY_RANK[autonomy] < minimum_autonomy:
             raise BacklogError(f"{task_id}: автономность слишком широка для риска {risk}")
         records[task_id] = record

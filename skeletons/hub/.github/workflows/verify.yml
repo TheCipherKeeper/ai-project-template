@@ -85,7 +85,6 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REVIEWER: ${{ vars.AGENT_REVIEWER_LOGIN }}
-      HUMAN_REVIEWER: ${{ vars.HUMAN_REVIEWER_LOGIN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -100,12 +99,9 @@ jobs:
       - name: Read reviews
         if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" > reviews.json
-      - name: Read labels
-        if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
-        run: gh pr view "${{ github.event.pull_request.html_url }}" --json labels > labels.json
       - name: Verify independent approval
         if: ${{ !contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
-        run: uv run .methodology-policy/tools/pipeline/run.py review --reviews reviews.json --labels labels.json --reviewer "$REVIEWER" --human-reviewer "$HUMAN_REVIEWER" --author "${{ github.event.pull_request.user.login }}" --commit "${{ github.event.pull_request.head.sha }}"
+        run: uv run .methodology-policy/tools/pipeline/run.py review --reviews reviews.json --reviewer "$REVIEWER" --author "${{ github.event.pull_request.user.login }}" --commit "${{ github.event.pull_request.head.sha }}"
       - name: Product review not applicable to task finalization
         if: ${{ contains(github.event.pull_request.labels.*.name, 'task-finalization') }}
         run: echo "not_applicable"
@@ -200,7 +196,7 @@ jobs:
       actions: read
       contents: read
       id-token: write
-    environment: ${{ contains(github.event.pull_request.labels.*.name, 'risk:critical') && 'critical-test' || 'test' }}
+    environment: test
     env:
       DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
     steps:

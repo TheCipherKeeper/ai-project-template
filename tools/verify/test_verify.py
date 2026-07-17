@@ -268,6 +268,23 @@ def test_backlog_accepts_diagnostic_status_and_requires_fields(tmp_path: Path) -
     )
 
 
+def test_critical_risk_allows_automatic_test_deployment(tmp_path: Path) -> None:
+    make_hub(tmp_path)
+    source = Path(__file__).resolve().parents[2] / "skeletons" / "hub" / "BACKLOG.md"
+    backlog = source.read_text(encoding="utf-8")
+    backlog = backlog.replace("Риск: low", "Риск: critical").replace(
+        "Автономность: auto-test-deploy", "Автономность: human-before-production"
+    )
+    (tmp_path / "BACKLOG.md").write_text(backlog, encoding="utf-8")
+
+    report = run(tmp_path)
+
+    assert any(
+        check["id"] == "VER-012" and check["status"] == "passed"
+        for check in report["checks"]
+    )
+
+
 def test_methodology_rejects_powershell_scripts(tmp_path: Path) -> None:
     (tmp_path / ".methodology.yml").write_text(
         "schema_version: 1\nrepository_type: methodology\nmethodology_ref: self\n",

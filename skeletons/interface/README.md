@@ -17,9 +17,8 @@
    анализа, проверки типов, тестирования и сборки.
 6. Замените маркер поставки в `.pipeline.json`; `deploy` должен завершаться
    проверкой готовности и быстрой проверкой.
-7. Задайте переменные CI `METHODOLOGY_REPOSITORY`, `METHODOLOGY_VERSION`,
-   `AGENT_REVIEWER_LOGIN` и `HUMAN_REVIEWER_LOGIN`; настройте среды `test` и
-   защищённую `critical-test`.
+7. Задайте переменные CI `METHODOLOGY_REPOSITORY`, `METHODOLOGY_VERSION` и
+   `AGENT_REVIEWER_LOGIN`; настройте среду `test`.
 8. Укажите лицензию ниже и выполните локальные проверки.
 
 ## Карта файлов

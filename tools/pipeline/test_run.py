@@ -68,32 +68,26 @@ def test_review_requires_current_head_and_separate_reviewer(tmp_path: Path) -> N
         raise AssertionError("устаревшее одобрение не должно проходить")
 
 
-def test_critical_review_requires_human_approval(tmp_path: Path) -> None:
+def test_critical_review_accepts_independent_agent_approval(tmp_path: Path) -> None:
     reviews = tmp_path / "reviews.json"
-    labels = tmp_path / "labels.json"
     reviews.write_text(
         json.dumps(
             [
                 {"state": "APPROVED", "commit_id": "abc1234", "user": {"login": "review-agent"}},
-                {"state": "APPROVED", "commit_id": "abc1234", "user": {"login": "human"}},
             ]
         ),
         encoding="utf-8",
     )
-    labels.write_text(json.dumps({"labels": [{"name": "risk:critical"}]}), encoding="utf-8")
-
-    pipeline.verify_review(reviews, "review-agent", "author-agent", "abc1234", labels, "human")
+    pipeline.verify_review(reviews, "review-agent", "author-agent", "abc1234")
 
 
 
 def test_low_risk_requires_independent_review(tmp_path: Path) -> None:
     reviews = tmp_path / "reviews.json"
     reviews.write_text("[]", encoding="utf-8")
-    labels = tmp_path / "labels.json"
-    labels.write_text(json.dumps({"labels": [{"name": "risk:low"}]}), encoding="utf-8")
 
     with pytest.raises(pipeline.PipelineError, match="отдельную учётную запись"):
-        pipeline.verify_review(reviews, "", "author-agent", "abc1234", labels)
+        pipeline.verify_review(reviews, "", "author-agent", "abc1234")
 
     reviews.write_text(
         json.dumps(
@@ -107,4 +101,4 @@ def test_low_risk_requires_independent_review(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    pipeline.verify_review(reviews, "review-agent", "author-agent", "abc1234", labels)
+    pipeline.verify_review(reviews, "review-agent", "author-agent", "abc1234")

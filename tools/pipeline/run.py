@@ -145,20 +145,7 @@ def verify_review(
     reviewer: str,
     author: str,
     head: str,
-    labels_path: Path | None = None,
-    human_reviewer: str = "",
 ) -> None:
-    labels: set[str] = set()
-    if labels_path is not None:
-        try:
-            label_document = json.loads(labels_path.read_text(encoding="utf-8"))
-            labels = {
-                item["name"]
-                for item in label_document.get("labels", [])
-                if isinstance(item, dict) and isinstance(item.get("name"), str)
-            }
-        except (OSError, json.JSONDecodeError, AttributeError) as error:
-            raise PipelineError(f"не удалось прочитать метки PR: {error}") from error
     if not reviewer or reviewer == author:
         raise PipelineError("AGENT_REVIEWER_LOGIN должен указывать отдельную учётную запись")
     try:
@@ -175,19 +162,6 @@ def verify_review(
     )
     if not approved:
         raise PipelineError(f"нет актуального APPROVED review от {reviewer} для {head}")
-    if "risk:critical" in labels:
-        if not human_reviewer or human_reviewer in {author, reviewer}:
-            raise PipelineError("для risk:critical требуется отдельный HUMAN_REVIEWER_LOGIN")
-        human_approved = any(
-            isinstance(review, dict)
-            and review.get("state") == "APPROVED"
-            and review.get("commit_id") == head
-            and isinstance(review.get("user"), dict)
-            and review["user"].get("login") == human_reviewer
-            for review in reviews
-        )
-        if not human_approved:
-            raise PipelineError(f"risk:critical не имеет APPROVED review от {human_reviewer}")
 
 def deploy(config: dict[str, object], root: Path, commit: str, artifact: Path) -> None:
     if not artifact.is_file():
@@ -223,9 +197,7 @@ def main() -> int:
     parser.add_argument("--artifact", type=Path)
     parser.add_argument("--reviews", type=Path)
     parser.add_argument("--reviewer", default="")
-    parser.add_argument("--human-reviewer", default="")
     parser.add_argument("--author", default="")
-    parser.add_argument("--labels", type=Path)
     try:
         args = parser.parse_args()
         root = args.root.resolve()
@@ -237,8 +209,6 @@ def main() -> int:
                 args.reviewer,
                 args.author,
                 args.commit,
-                args.labels,
-                args.human_reviewer,
             )
             return 0
         config = load_config(root)

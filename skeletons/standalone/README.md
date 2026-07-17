@@ -20,9 +20,8 @@
    `docker-compose.yml`; для другой формы удалите неприменимые контейнерные файлы.
 7. Замените все маркеры в `.pipeline.json` точными командами и выходами сборки;
    `deploy` должен завершаться проверкой готовности и быстрой проверкой.
-8. Задайте переменные CI `METHODOLOGY_REPOSITORY`, `METHODOLOGY_VERSION`,
-   `AGENT_REVIEWER_LOGIN` и `HUMAN_REVIEWER_LOGIN`; настройте среды `test` и
-   защищённую `critical-test`.
+8. Задайте переменные CI `METHODOLOGY_REPOSITORY`, `METHODOLOGY_VERSION` и
+   `AGENT_REVIEWER_LOGIN`; настройте среду `test`.
 9. Укажите лицензию ниже и выполните локальные проверки.
 
 ## Карта файлов

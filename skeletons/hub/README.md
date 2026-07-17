@@ -16,9 +16,8 @@
 4. В `BACKLOG.md` замените пример первой реальной задачей.
 5. Настройте системный `docker-compose.yml` и имена параметров в `.env.example`.
 6. Проверьте команды и выходы сборки в `.pipeline.json`.
-7. Задайте переменные CI `METHODOLOGY_REPOSITORY`, `METHODOLOGY_VERSION`,
-   `AGENT_REVIEWER_LOGIN` и `HUMAN_REVIEWER_LOGIN`; настройте среды `test` и
-   защищённую `critical-test`.
+7. Задайте переменные CI `METHODOLOGY_REPOSITORY`, `METHODOLOGY_VERSION` и
+   `AGENT_REVIEWER_LOGIN`; настройте среду `test`.
 8. Укажите лицензию ниже и выполните локальную проверку.
 9. Заполните параметры `TASK_AGENT_*` в `.env`, чтобы запускать первую готовую
    задачу из хаба.
