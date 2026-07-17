@@ -8,6 +8,7 @@ from verify import (
     commit_matches_head,
     finalization_diff_errors,
     composition_errors,
+    forbidden_artifacts,
     markdown_files,
     main,
     non_mermaid_diagrams,
@@ -16,6 +17,14 @@ from verify import (
     skeleton_errors,
     validate_json,
 )
+
+
+def test_adr_directory_is_allowed_only_in_hub(tmp_path: Path) -> None:
+    (tmp_path / "adr").mkdir()
+
+    assert forbidden_artifacts(tmp_path, "hub") == []
+    for kind in ("methodology", "service", "interface", "standalone"):
+        assert forbidden_artifacts(tmp_path, kind) == ["adr/"]
 
 
 def make_hub(tmp_path: Path, methodology_ref: str = "v1.0.0") -> None:
